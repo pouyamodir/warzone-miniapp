@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Warzone Squad</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #07090d;
+      --card: #12161e;
+      --line: #2a3140;
+      --text: #eef2f6;
+      --muted: #8b95a7;
+      --orange: #ff6a00;
+      --green: #3dd68c;
+      --red: #ff4d4d;
+      --yellow: #ffcc33;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Tahoma", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(800px 400px at 80% -10%, rgba(255,106,0,.18), transparent 55%),
+        radial-gradient(600px 300px at 0% 100%, rgba(61,214,140,.08), transparent 50%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 18px 16px 32px;
+    }
+    .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:18px; }
+    h1 { font-size:22px; }
+    .sub { color:var(--muted); font-size:13px; margin-top:4px; }
+    .pill { background:#1b2110; border:1px solid #3a4a1a; color:#d6ff7a; font-size:11px; padding:6px 10px; border-radius:999px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:12px; }
+    .label { color:var(--muted); font-size:12px; margin-bottom:8px; }
+    .who { font-size:16px; font-weight:700; }
+    .row { display:flex; gap:8px; }
+    button { border:0; border-radius:12px; padding:12px 10px; font-weight:700; font-size:14px; cursor:pointer; width:100%; }
+    .go { background:var(--green); color:#062; }
+    .maybe { background:var(--yellow); color:#3a2a00; }
+    .no { background:var(--red); color:#fff; }
+    button.active { outline:2px solid #fff; }
+    input { width:100%; background:#0c1016; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:11px 12px; font-size:15px; }
+    .maps { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .map { background:#0c1016; border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center; font-weight:700; }
+    .map.on { border-color:var(--orange); background:#2a1608; color:#ffb077; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.7; }
+    .status { display:inline-block; padding:4px 8px; border-radius:8px; font-size:12px; }
+    .s-go { background:#163; color:#b8ffd4; }
+    .s-maybe { background:#432; color:#ffe08a; }
+    .s-no { background:#411; color:#ffb3b3; }
+    .s-none { background:#222; color:#aaa; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1>WARZONE SQUAD</h1>
+      <div class="sub">هماهنگی اسکاد</div>
+    </div>
+    <div class="pill">LIVE LOBBY</div>
+  </div>
+
+  <div class="card">
+    <div class="label">تو کی هستی</div>
+    <div class="who" id="who">در حال خوندن از تلگرام...</div>
+    <div style="margin-top:8px" class="hint" id="idline"></div>
+  </div>
+
+  <div class="card">
+    <div class="label">وضعیت امشب</div>
+    <div class="row">
+      <button class="go" id="btnGo">میام</button>
+      <button class="maybe" id="btnMaybe">شاید</button>
+      <button class="no" id="btnNo">نیستم</button>
+    </div>
+    <div style="margin-top:10px">وضعیت فعلی: <span class="status s-none" id="mystatus">ثبت نشده</span></div>
+  </div>
+
+  <div class="card">
+    <div class="label">ساعت پیشنهادی</div>
+    <input id="time" type="time" />
+  </div>
+
+  <div class="card">
+    <div class="label">مود / مپ</div>
+    <div class="maps">
+      <div class="map" data-map="Resurgence">Resurgence</div>
+      <div class="map" data-map="Battle Royale">Battle Royale</div>
+      <div class="map" data-map="Ranked">Ranked</div>
+      <div class="map" data-map="Plunder">Plunder</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">یادداشت</div>
+    <input id="note" placeholder="ویز، لوداوت، کد پارتی..." />
+  </div>
+
+  <div class="card hint">
+    این نسخه روی گوشی خودت ذخیره می‌شه. لیست مشترک همه اسکاد مرحله بعد با دیتابیس رایگان وصل می‌شه.
+  </div>
+
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      try { tg.setHeaderColor("#07090d"); } catch (e) {}
+      try { tg.setBackgroundColor("#07090d"); } catch (e) {}
+    }
+
+    const user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+    const name = [user.first_name, user.last_name].filter(Boolean).join(" ") || "بازیکن ناشناس";
+    const username = user.username ? "@" + user.username : "یوزرنیم نداره";
+    document.getElementById("who").textContent = name;
+    document.getElementById("idline").textContent = username + (user.id ? " | ID: " + user.id : " | بیرون از تلگرام باز شده");
+
+    const KEY = "wz_squad_v1";
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+    const save = (data) => localStorage.setItem(KEY, JSON.stringify(data));
+    let state = Object.assign({ status: "", time: "22:00", map: "Resurgence", note: "" }, load());
+
+    const statusEl = document.getElementById("mystatus");
+    function paintStatus() {
+      const map = { go: ["میام", "s-go"], maybe: ["شاید", "s-maybe"], no: ["نیستم", "s-no"] };
+      const cur = map[state.status];
+      statusEl.className = "status " + (cur ? cur[1] : "s-none");
+      statusEl.textContent = cur ? cur[0] : "ثبت نشده";
+      document.getElementById("btnGo").classList.toggle("active", state.status === "go");
+      document.getElementById("btnMaybe").classList.toggle("active", state.status === "maybe");
+      document.getElementById("btnNo").classList.toggle("active", state.status === "no");
+    }
+
+    document.getElementById("time").value = state.time;
+    document.getElementById("note").value = state.note;
+    document.querySelectorAll(".map").forEach((el) => {
+      el.classList.toggle("on", el.dataset.map === state.map);
+      el.onclick = () => {
+        state.map = el.dataset.map;
+        document.querySelectorAll(".map").forEach((x) => x.classList.remove("on"));
+        el.classList.add("on");
+        save(state);
+      };
+    });
+
+    document.getElementById("btnGo").onclick = () => { state.status = "go"; save(state); paintStatus(); };
+    document.getElementById("btnMaybe").onclick = () => { state.status = "maybe"; save(state); paintStatus(); };
+    document.getElementById("btnNo").onclick = () => { state.status = "no"; save(state); paintStatus(); };
+    document.getElementById("time").onchange = (e) => { state.time = e.target.value; save(state); };
+    document.getElementById("note").oninput = (e) => { state.note = e.target.value; save(state); };
+    paintStatus();
+
+    if (tg) {
+      tg.MainButton.setText("بستن");
+      tg.MainButton.show();
+      tg.MainButton.onClick(() => tg.close());
+    }
+  </script>
+</body>
+</html>
