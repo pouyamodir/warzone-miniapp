@@ -10,95 +10,50 @@
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0b0c0e;
-      --bg2: #121417;
-      --card: rgba(255,255,255,.035);
-      --stroke: rgba(255,255,255,.08);
-      --text: #f3f1ec;
-      --dim: #9a958c;
-      --gold: #d7b369;
-      --gold2: #f0d59a;
-      --ok: #8fcaa0;
-      --wait: #e0b86a;
-      --no: #d98980;
-      --shadow: 0 20px 60px rgba(0,0,0,.35);
+      --bg: #0b0c0e; --card: rgba(255,255,255,.035); --stroke: rgba(255,255,255,.08);
+      --text: #f3f1ec; --dim: #9a958c; --gold: #d7b369; --gold2: #f0d59a;
+      --ok: #8fcaa0; --wait: #e0b86a; --no: #d98980; --shadow: 0 20px 60px rgba(0,0,0,.35);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
     body {
-      font-family: "Vazirmatn", sans-serif;
-      background:
-        radial-gradient(900px 420px at 100% -10%, rgba(215,179,105,.12), transparent 50%),
-        radial-gradient(700px 380px at -20% 110%, rgba(255,255,255,.04), transparent 45%),
-        var(--bg);
-      color: var(--text);
-      padding: 18px 16px 28px;
+      font-family: "Vazirmatn", sans-serif; color: var(--text); padding: 18px 16px 28px;
+      background: radial-gradient(900px 420px at 100% -10%, rgba(215,179,105,.12), transparent 50%), var(--bg);
     }
     .wrap { max-width: 460px; margin: 0 auto; }
     header { display: flex; justify-content: space-between; align-items: flex-end; margin: 6px 0 22px; }
     .brand { font-weight: 700; font-size: 13px; letter-spacing: 2.4px; color: var(--gold); }
     .hello { font-size: 22px; font-weight: 700; line-height: 1.35; margin-top: 4px; }
-    .hello span { color: var(--dim); font-weight: 400; font-size: 14px; display: block; margin-top: 2px; }
-    .ghost {
-      border: 1px solid var(--stroke);
-      background: transparent;
-      color: var(--text);
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-family: inherit;
-      font-size: 12px;
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--stroke);
-      border-radius: 22px;
-      padding: 18px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(16px);
-    }
-    .kicker { color: var(--dim); font-size: 12px; font-weight: 500; margin-bottom: 8px; }
-    .count { display: flex; align-items: baseline; gap: 8px; margin: 4px 0 6px; }
-    .count b { font-size: 54px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+    .hello span { color: var(--dim); font-weight: 400; font-size: 14px; display: block; }
+    .ghost { border: 1px solid var(--stroke); background: transparent; color: var(--text); border-radius: 999px; padding: 8px 12px; font-family: inherit; font-size: 12px; }
+    .card { background: var(--card); border: 1px solid var(--stroke); border-radius: 22px; padding: 18px; box-shadow: var(--shadow); }
+    .kicker { color: var(--dim); font-size: 12px; margin-bottom: 8px; }
+    .count { display: flex; align-items: baseline; gap: 8px; }
+    .count b { font-size: 54px; font-weight: 800; letter-spacing: -2px; }
     .count em { font-style: normal; color: var(--dim); font-size: 16px; }
     .status { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--gold2); margin-top: 4px; }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); }
     .meta { margin-top: 14px; color: var(--dim); font-size: 13px; line-height: 1.8; }
     .people { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-    .person {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 11px 12px; border-radius: 14px; background: rgba(255,255,255,.03);
-      border: 1px solid rgba(255,255,255,.05);
-    }
+    .person { display: flex; justify-content: space-between; align-items: center; padding: 11px 12px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); }
     .person .n { font-weight: 600; font-size: 14px; }
     .tag { font-size: 11px; padding: 4px 8px; border-radius: 999px; }
     .tag.ok { background: rgba(143,202,160,.14); color: var(--ok); }
     .tag.wait { background: rgba(224,184,106,.12); color: var(--wait); }
     .tag.no { background: rgba(217,137,128,.12); color: var(--no); }
     .tag.host { background: rgba(215,179,105,.14); color: var(--gold2); }
-    .btn { width: 100%; border: 0; border-radius: 16px; padding: 16px 14px; font-family: inherit; font-weight: 700; font-size: 16px; cursor: pointer; }
+    .btn { width: 100%; border: 0; border-radius: 16px; padding: 16px 14px; font-family: inherit; font-weight: 700; font-size: 16px; }
     .btn-gold { background: linear-gradient(180deg, #ecd392, #c9a24e); color: #1a1408; }
     .btn-soft { background: rgba(255,255,255,.06); color: var(--text); border: 1px solid var(--stroke); }
     .btn-rules { margin-top: 10px; background: transparent; color: var(--gold2); border: 1px solid rgba(215,179,105,.35); }
     .stack { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
     .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .choice, .opt {
-      border: 1px solid var(--stroke); background: rgba(255,255,255,.03);
-      color: var(--text); border-radius: 14px; padding: 13px 10px;
-      font-family: inherit; font-size: 13px; font-weight: 600;
-    }
+    .choice, .opt { border: 1px solid var(--stroke); background: rgba(255,255,255,.03); color: var(--text); border-radius: 14px; padding: 13px 10px; font-family: inherit; font-size: 13px; font-weight: 600; }
     .choice.on, .opt.on { border-color: var(--gold); background: rgba(215,179,105,.1); color: var(--gold2); }
     .choice.full { grid-column: 1 / -1; }
-    input[type="time"] {
-      width: 100%; background: rgba(255,255,255,.03); color: var(--text);
-      border: 1px solid var(--stroke); border-radius: 14px; padding: 12px;
-      font-family: inherit; font-size: 16px;
-    }
+    input[type="time"] { width: 100%; background: rgba(255,255,255,.03); color: var(--text); border: 1px solid var(--stroke); border-radius: 14px; padding: 12px; font-family: inherit; font-size: 16px; }
     .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.62); display: none; align-items: flex-end; justify-content: center; z-index: 20; }
     .sheet.on { display: flex; }
-    .sheet .inner {
-      width: min(460px, 100%); background: #14161a; border: 1px solid var(--stroke);
-      border-radius: 24px 24px 0 0; padding: 18px 18px 28px; max-height: 86vh; overflow: auto;
-    }
+    .sheet .inner { width: min(460px,100%); background: #14161a; border: 1px solid var(--stroke); border-radius: 24px 24px 0 0; padding: 18px 18px 28px; max-height: 86vh; overflow: auto; }
     .sheet h3 { font-size: 18px; margin-bottom: 12px; }
     .sheet ol { color: #d6d1c8; padding-right: 18px; line-height: 2; font-size: 13.5px; }
     .muted { color: var(--dim); font-size: 12px; line-height: 1.8; }
@@ -115,17 +70,15 @@
       </div>
       <button class="ghost" id="meChip">عضو</button>
     </header>
-
     <section id="viewIdle" class="card empty">
       <div class="kicker">الان درخواستی باز نیست</div>
       <h2>کسی هست<br/>برای بازی؟</h2>
-      <p class="muted">یه درخواست بده، ساعت و مدت رو مشخص کن. بقیه نوتیف می‌گیرن و همین‌جا جواب‌ها جمع می‌شه.</p>
+      <p class="muted">یه درخواست بده، ساعت و مدت رو مشخص کن. بقیه همین تابلو را می‌بینند.</p>
       <div class="stack">
         <button class="btn btn-gold" id="btnAsk">کسی هست برای بازی؟</button>
         <button class="btn btn-rules" id="btnRules1">قوانین</button>
       </div>
     </section>
-
     <section id="viewCreate" class="card" hidden>
       <div class="kicker">درخواست جدید</div>
       <h2 style="font-size:22px;margin-bottom:14px">کی و تا کی؟</h2>
@@ -149,7 +102,6 @@
         <button class="btn btn-soft" id="btnCancelCreate">برگشت</button>
       </div>
     </section>
-
     <section id="viewBoard" class="card" hidden>
       <div class="kicker" id="hostLine">درخواست‌کننده</div>
       <div class="count"><b id="num">1</b><em>از ۴ نفر</em></div>
@@ -160,7 +112,6 @@
       <button class="btn btn-rules" id="btnRules2">قوانین</button>
     </section>
   </div>
-
   <div class="sheet" id="rules">
     <div class="inner">
       <h3>قوانین اسکواد</h3>
@@ -171,111 +122,90 @@
         <li>دموکراسی بر رأی فردی اولویت دارد.</li>
         <li>تأخیر بیش از زمان اعلام‌شده باید به‌صورت خصوصی یا تلفنی اعلام شود.</li>
         <li>اگر به نت دسترسی دارید حتماً به درخواست بازی پاسخ دهید و «نیستم» را ثبت کنید.</li>
+        <li>اگر کسی بدون اعلام در این بات در بازی باشد، یعنی می‌خواهد تنها یا با گروهی دیگر بازی کند.</li>
       </ol>
       <div class="stack"><button class="btn btn-gold" id="closeRules">باشه</button></div>
     </div>
   </div>
-
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
   <script>
     const tg = window.Telegram && window.Telegram.WebApp;
-    if (tg) {
-      tg.ready(); tg.expand();
-      try { tg.setHeaderColor("#0b0c0e"); tg.setBackgroundColor("#0b0c0e"); } catch(e) {}
-    }
+    if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0b0c0e"); tg.setBackgroundColor("#0b0c0e"); } catch(e) {} }
     const user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
-    const me = {
-      id: String(user.id || "local"),
-      name: [user.first_name, user.last_name].filter(Boolean).join(" ") || "بازیکن"
-    };
+    const me = { id: String(user.id || "local"), name: [user.first_name, user.last_name].filter(Boolean).join(" ") || "بازیکن" };
     document.getElementById("hello").innerHTML = me.name + '<span>تابلو اسکواد — وقت ایران</span>';
     document.getElementById("meChip").textContent = user.username ? "@"+user.username : "عضو";
 
-    const KEY = "squad_board_v2";
+    firebase.initializeApp({
+      apiKey: "AIzaSyAyIDyPMx1eKgryRSvHpDcQ5G-rh8f_qPQ",
+      authDomain: "esquad-warzone.firebaseapp.com",
+      databaseURL: "https://esquad-warzone-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "esquad-warzone",
+      storageBucket: "esquad-warzone.firebasestorage.app",
+      messagingSenderId: "429017395304",
+      appId: "1:429017395304:web:d3bd45d06b10ca306f8bdd"
+    });
+    const lobbyRef = firebase.database().ref("lobby");
     const iranNow = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tehran" }));
     const pad = (n) => String(n).padStart(2,"0");
     const fmt = (d) => pad(d.getHours()) + ":" + pad(d.getMinutes());
-    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
-    const save = (s) => localStorage.setItem(KEY, JSON.stringify(s));
-
-    let startMode = "now";
-    let duration = 120;
-    let state = load();
+    const save = (s) => lobbyRef.set(s || null);
+    let startMode = "now", duration = 120, state = null, ready = false;
     const $ = (id) => document.getElementById(id);
-    const show = (id) => {
-      ["viewIdle","viewCreate","viewBoard"].forEach(v => $(v).hidden = v !== id);
-    };
-
-    function parseHHMM(str) {
-      const [h,m] = str.split(":").map(Number);
-      const d = iranNow();
-      d.setHours(h, m, 0, 0);
-      return d;
-    }
+    const show = (id) => ["viewIdle","viewCreate","viewBoard"].forEach(v => $(v).hidden = v !== id);
+    function parseHHMM(str) { const [h,m] = str.split(":").map(Number); const d = iranNow(); d.setHours(h,m,0,0); return d; }
     function computePhase(s) {
-      const now = iranNow();
-      const start = new Date(s.startIso);
-      const end = new Date(s.endIso);
-      if (now >= end) return "closed";
-      if (now >= start) return "live";
-      return "wait";
+      const now = iranNow(), start = new Date(s.startIso), end = new Date(s.endIso);
+      if (now >= end) return "closed"; if (now >= start) return "live"; return "wait";
     }
     function counted(s) {
-      const ready = s.answers.filter(a => a.code === "5" || a.code === "15");
-      return [...new Set([s.hostId, ...ready.map(a => a.id)])];
+      const list = s.answers || [];
+      return [...new Set([s.hostId, ...list.filter(a => a.code==="5"||a.code==="15").map(a => a.id)])];
     }
     function label(code) {
-      return { host:"درخواست‌کننده","5":"الان تا ۵ دقیقه","15":"تا ۱۵ دقیقه","30":"۳۰ دقیقه — رزرو","60":"۱ ساعت+ — رزرو",no:"نیستم" }[code] || code;
+      return {host:"درخواست‌کننده","5":"الان تا ۵ دقیقه","15":"تا ۱۵ دقیقه","30":"حدود ۳۰ دقیقه — رزرو","60":"یک ساعت به بالا — رزرو",no:"نیستم"}[code] || code;
     }
     function tagClass(code) {
-      if (code === "no") return "no";
-      if (code === "30" || code === "60") return "wait";
-      if (code === "host") return "host";
-      return "ok";
+      if (code==="no") return "no"; if (code==="30"||code==="60") return "wait"; if (code==="host") return "host"; return "ok";
     }
-
     function render() {
-      if (!state || computePhase(state) === "closed") {
-        state = null; save(null); show("viewIdle"); return;
-      }
+      if (!ready) return;
+      if (state && computePhase(state)==="closed") { save(null); return; }
+      if (!state) { show("viewIdle"); return; }
+      state.answers = state.answers || [];
       const phase = computePhase(state);
       const n = Math.min(4, counted(state).length);
       $("num").textContent = n;
       $("hostLine").textContent = state.hostName + " درخواست داده";
-      $("phase").textContent = phase === "wait" ? "در انتظار پر شدن اسکواد" : (n >= 4 ? "اسکواد کامل شد — بازی شروع شده" : "بازی شروع شد");
-      $("timeLine").innerHTML =
-        "شروع " + state.startLabel + " — حدوداً تا " + state.endLabel +
-        (phase === "live" && n < 4 ? "<br/>لابی باز می‌مونه. اگر جا خالی ماند می‌توانید منتظر دست جاری بمانید." : "") +
-        (phase === "wait" ? "<br/>لابی بازه" : "");
-
-      const rows = [{ id: state.hostId, name: state.hostName, code: "host" }, ...state.answers];
-      $("people").innerHTML = rows.map(p =>
-        `<div class="person"><div class="n">${p.name}</div><div class="tag ${tagClass(p.code)}">${label(p.code)}</div></div>`
-      ).join("");
-
+      $("phase").textContent = phase==="wait" ? "در انتظار پر شدن اسکواد" : (n>=4 ? "اسکواد کامل شد — بازی شروع شده" : "بازی شروع شد");
+      $("timeLine").innerHTML = "شروع " + state.startLabel + " — حدوداً تا " + state.endLabel +
+        (phase==="live" && n<4 ? "<br/>لابی باز می‌مونه. اگر جا خالی ماند می‌توانید منتظر دست جاری بمانید." : "") +
+        (phase==="wait" ? "<br/>لابی بازه" : "");
+      const rows = [{id:state.hostId,name:state.hostName,code:"host"}, ...state.answers];
+      $("people").innerHTML = rows.map(p => `<div class="person"><div class="n">${p.name}</div><div class="tag ${tagClass(p.code)}">${label(p.code)}</div></div>`).join("");
       const actions = $("boardActions");
       if (me.id === state.hostId) {
         actions.innerHTML = `<button class="btn btn-soft" id="btnCancelReq">لغو درخواست</button>`;
-        $("btnCancelReq").onclick = () => { state = null; save(null); render(); };
+        $("btnCancelReq").onclick = () => save(null);
       } else if (!state.answers.some(a => a.id === me.id)) {
-        actions.innerHTML = `
-          <div class="choices">
-            <button class="choice" data-ans="5">الان تا ۵ دقیقه</button>
-            <button class="choice" data-ans="15">تا ۱۵ دقیقه</button>
-            <button class="choice" data-ans="30">حدود ۳۰ دقیقه</button>
-            <button class="choice" data-ans="60">یک ساعت به بالا</button>
-          </div>`;
+        actions.innerHTML = `<div class="choices">
+          <button class="choice" data-ans="5">الان تا ۵ دقیقه</button>
+          <button class="choice" data-ans="15">تا ۱۵ دقیقه</button>
+          <button class="choice" data-ans="30">حدود ۳۰ دقیقه</button>
+          <button class="choice" data-ans="60">یک ساعت به بالا</button>
+          <button class="choice full" data-ans="no">نیستم</button>
+        </div>`;
         actions.querySelectorAll("[data-ans]").forEach(b => b.onclick = () => {
           state.answers = state.answers.filter(a => a.id !== me.id);
           state.answers.push({ id: me.id, name: me.name, code: b.dataset.ans, at: Date.now() });
-          save(state); render();
+          save(state);
         });
       } else {
-        const mine = state.answers.find(a => a.id === me.id);
-        actions.innerHTML = `<div class="muted">جواب تو ثبت شد: ${label(mine.code)}</div>`;
+        actions.innerHTML = `<div class="muted">جواب تو ثبت شد: ${label(state.answers.find(a => a.id===me.id).code)}</div>`;
       }
       show("viewBoard");
     }
-
     $("btnAsk").onclick = () => show("viewCreate");
     $("btnCancelCreate").onclick = () => render();
     document.querySelectorAll("[data-start]").forEach(b => b.onclick = () => {
@@ -288,21 +218,15 @@
       document.querySelectorAll("[data-dur]").forEach(x => x.classList.toggle("on", x===b));
     });
     $("btnPublish").onclick = () => {
-      const start = startMode === "now" ? iranNow() : parseHHMM($("clock").value || fmt(iranNow()));
+      const start = startMode==="now" ? iranNow() : parseHHMM($("clock").value || fmt(iranNow()));
       const end = new Date(start.getTime() + duration * 60000);
-      state = {
-        hostId: me.id, hostName: me.name,
-        startIso: start.toISOString(), endIso: end.toISOString(),
-        startLabel: fmt(start), endLabel: fmt(end),
-        answers: []
-      };
-      save(state); render();
+      save({ hostId: me.id, hostName: me.name, startIso: start.toISOString(), endIso: end.toISOString(), startLabel: fmt(start), endLabel: fmt(end), answers: [] });
     };
     $("btnRules1").onclick = $("btnRules2").onclick = () => $("rules").classList.add("on");
     $("closeRules").onclick = () => $("rules").classList.remove("on");
-    $("rules").onclick = (e) => { if (e.target.id === "rules") $("rules").classList.remove("on"); };
+    $("rules").onclick = (e) => { if (e.target.id==="rules") $("rules").classList.remove("on"); };
     $("clock").value = fmt(iranNow());
-    render();
+    lobbyRef.on("value", (snap) => { ready = true; state = snap.val(); render(); });
   </script>
 </body>
 </html>
