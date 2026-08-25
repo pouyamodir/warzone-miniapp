@@ -45,7 +45,7 @@ def notify_new_request(lobby, old):
 def handle_update(upd):
     if "message" in upd and str(upd["message"].get("text") or "").startswith("/start"):
         save_member(upd["message"].get("from"))
-        tg("sendMessage", {"chat_id": upd["message"]["chat"]["id"], "text": "عضو اسکواد شدی. از دکمه ESQUAD درخواست بده."})
+        tg("sendMessage", {"chat_id": upd["message"]["chat"]["id"], "text": "عضو اسکواد شدی. از دکمه Open درخواست بده."})
         return
     q = upd.get("callback_query")
     if not q: return
