@@ -65,6 +65,13 @@ def handle_update(upd):
     answers.append({"id":str(user.get("id")),"name":" ".join(x for x in [user.get("first_name"), user.get("last_name")] if x) or "بازیکن","code":code,"at":int(time.time()*1000)})
     lobby["answers"] = answers
     db_put("lobby", lobby)
+    try:
+    tg("sendMessage", {
+        "chat_id": int(lobby["hostId"]),
+        "text": answers[-1]["name"] + ": " + LABELS.get(code, code)
+    })
+except Exception as e:
+    print("host notify fail", e)
     tg("sendMessage", {"chat_id": chat_id, "text": "ثبت شد: " + LABELS.get(code, code)})
 
 def main():
