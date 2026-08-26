@@ -164,7 +164,7 @@
       return [...new Set([s.hostId, ...list.filter(a => a.code==="5"||a.code==="15").map(a => a.id)])];
     }
     function label(code) {
-      return {host:"درخواست‌کننده","5":"الان تا ۵ دقیقه","15":"تا ۱۵ دقیقه","30":"حدود ۳۰ دقیقه — رزرو","60":"یک ساعت به بالا — رزرو",no:"نیستم"}[code] || code;
+      return {host:"درخواست‌کننده","5":"تا ۵ دقیقه","15":"تا ۱۵ دقیقه","30":"حدود ۳۰ دقیقه — رزرو","60":"یک ساعت به بالا — رزرو",no:"نیستم"}[code] || code;
     }
     function tagClass(code) {
       if (code==="no") return "no"; if (code==="30"||code==="60") return "wait"; if (code==="host") return "host"; return "ok";
@@ -190,7 +190,7 @@
         $("btnCancelReq").onclick = () => save(null);
       } else if (!state.answers.some(a => a.id === me.id)) {
         actions.innerHTML = `<div class="choices">
-          <button class="choice" data-ans="5">الان تا ۵ دقیقه</button>
+          <button class="choice" data-ans="5">تا ۵ دقیقه</button>
           <button class="choice" data-ans="15">تا ۱۵ دقیقه</button>
           <button class="choice" data-ans="30">حدود ۳۰ دقیقه</button>
           <button class="choice" data-ans="60">یک ساعت به بالا</button>
