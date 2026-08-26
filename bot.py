@@ -18,9 +18,11 @@ class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+
 def serve():
     port = int(os.environ.get("PORT", "10000"))
     HTTPServer(("0.0.0.0", port), H).serve_forever()
+
 
 LABELS = {
     "5": "تا ۵ دقیقه",
@@ -94,6 +96,32 @@ def notify_new_request(lobby, old):
             print("send fail", uid, e)
 
 
+def notify_new_answers(lobby, old):
+    if not lobby or not old:
+        return
+    if str(lobby.get("hostId") or "") != str(old.get("hostId") or ""):
+        return
+    if lobby.get("startIso") != old.get("startIso"):
+        return
+    prev = {str(a.get("id")): a for a in (old.get("answers") or []) if a}
+    for a in lobby.get("answers") or []:
+        if not a:
+            continue
+        oid = str(a.get("id"))
+        prev_a = prev.get(oid)
+        if prev_a is None or prev_a.get("code") != a.get("code"):
+            try:
+                tg(
+                    "sendMessage",
+                    {
+                        "chat_id": int(lobby["hostId"]),
+                        "text": f"{a.get('name', 'بازیکن')}: {LABELS.get(a.get('code'), a.get('code'))}",
+                    },
+                )
+            except Exception as e:
+                print("host notify fail", e)
+
+
 def handle_update(upd):
     if "message" in upd and str(upd["message"].get("text") or "").startswith("/start"):
         save_member(upd["message"].get("from"))
@@ -140,18 +168,6 @@ def handle_update(upd):
     )
     lobby["answers"] = answers
     db_put("lobby", lobby)
-
-    try:
-        tg(
-            "sendMessage",
-            {
-                "chat_id": int(lobby["hostId"]),
-                "text": answers[-1]["name"] + ": " + LABELS.get(code, code),
-            },
-        )
-    except Exception as e:
-        print("host notify fail", e)
-
     tg("sendMessage", {"chat_id": chat_id, "text": "ثبت شد: " + LABELS.get(code, code)})
 
 
@@ -168,6 +184,7 @@ def main():
                 cur = db_get("lobby")
                 if json.dumps(cur, sort_keys=True) != json.dumps(last, sort_keys=True):
                     notify_new_request(cur, last)
+                    notify_new_answers(cur, last)
                     last = cur
                 last_check = now
             payload = {"timeout": 2}
