@@ -23,7 +23,7 @@ def serve():
     HTTPServer(("0.0.0.0", port), H).serve_forever()
 
 LABELS = {
-    "5": "الان تا ۵ دقیقه",
+    "5": "تا ۵ دقیقه",
     "15": "تا ۱۵ دقیقه",
     "30": "حدود ۳۰ دقیقه",
     "60": "یک ساعت به بالا",
@@ -33,7 +33,7 @@ LABELS = {
 KB = {
     "inline_keyboard": [
         [
-            {"text": "الان تا ۵ دقیقه", "callback_data": "ans:5"},
+            {"text": "تا ۵ دقیقه", "callback_data": "ans:5"},
             {"text": "تا ۱۵ دقیقه", "callback_data": "ans:15"},
         ],
         [
