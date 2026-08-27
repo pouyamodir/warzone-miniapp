@@ -24,7 +24,7 @@ def serve():
     HTTPServer(("0.0.0.0", port), H).serve_forever()
 
 
-LABELS = {
+LABELS_NOW = {
     "5": "تا ۵ دقیقه",
     "15": "تا ۱۵ دقیقه",
     "30": "حدود ۳۰ دقیقه",
@@ -32,20 +32,39 @@ LABELS = {
     "no": "نیستم",
 }
 
-KB = {
-    "inline_keyboard": [
-        [
-            {"text": "تا ۵ دقیقه", "callback_data": "ans:5"},
-            {"text": "تا ۱۵ دقیقه", "callback_data": "ans:15"},
-        ],
-        [
-            {"text": "حدود ۳۰ دقیقه", "callback_data": "ans:30"},
-            {"text": "یک ساعت به بالا", "callback_data": "ans:60"},
-        ],
-        [{"text": "نیستم", "callback_data": "ans:no"}],
-        [{"text": "باز کردن تابلو", "url": "https://t.me/warzonesquad_bot/squad"}],
-    ]
+LABELS_LATER = {
+    "5": "هستم",
+    "15": "با ۱۵ دقیقه تأخیر",
+    "30": "با نیم ساعت تأخیر",
+    "60": "با یک ساعت تأخیر",
+    "no": "نیستم",
 }
+
+
+def is_later(lobby):
+    return (lobby or {}).get("startMode") == "clock"
+
+
+def labels_for(lobby):
+    return LABELS_LATER if is_later(lobby) else LABELS_NOW
+
+
+def keyboard_for(lobby):
+    L = labels_for(lobby)
+    return {
+        "inline_keyboard": [
+            [
+                {"text": L["5"], "callback_data": "ans:5"},
+                {"text": L["15"], "callback_data": "ans:15"},
+            ],
+            [
+                {"text": L["30"], "callback_data": "ans:30"},
+                {"text": L["60"], "callback_data": "ans:60"},
+            ],
+            [{"text": L["no"], "callback_data": "ans:no"}],
+            [{"text": "باز کردن تابلو", "url": "https://t.me/warzonesquad_bot/squad"}],
+        ]
+    }
 
 
 def db_get(path):
@@ -87,11 +106,12 @@ def notify_new_request(lobby, old):
         f"حدوداً تا {lobby.get('endLabel')}"
     )
     host = str(lobby.get("hostId"))
+    kb = keyboard_for(lobby)
     for uid in members:
         if str(uid) == host:
             continue
         try:
-            tg("sendMessage", {"chat_id": int(uid), "text": text, "reply_markup": KB})
+            tg("sendMessage", {"chat_id": int(uid), "text": text, "reply_markup": kb})
         except Exception as e:
             print("send fail", uid, e)
 
@@ -103,6 +123,7 @@ def notify_new_answers(lobby, old):
         return
     if lobby.get("startIso") != old.get("startIso"):
         return
+    L = labels_for(lobby)
     prev = {str(a.get("id")): a for a in (old.get("answers") or []) if a}
     for a in lobby.get("answers") or []:
         if not a:
@@ -115,7 +136,7 @@ def notify_new_answers(lobby, old):
                     "sendMessage",
                     {
                         "chat_id": int(lobby["hostId"]),
-                        "text": f"{a.get('name', 'بازیکن')}: {LABELS.get(a.get('code'), a.get('code'))}",
+                        "text": f"{a.get('name', 'بازیکن')}: {L.get(a.get('code'), a.get('code'))}",
                     },
                 )
             except Exception as e:
@@ -148,6 +169,7 @@ def handle_update(upd):
     save_member(user)
     chat_id = q["message"]["chat"]["id"]
     lobby = db_get("lobby") or {}
+    L = labels_for(lobby)
 
     if not lobby or not lobby.get("hostId"):
         tg("sendMessage", {"chat_id": chat_id, "text": "این درخواست بسته شده."})
@@ -168,7 +190,7 @@ def handle_update(upd):
     )
     lobby["answers"] = answers
     db_put("lobby", lobby)
-    tg("sendMessage", {"chat_id": chat_id, "text": "ثبت شد: " + LABELS.get(code, code)})
+    tg("sendMessage", {"chat_id": chat_id, "text": "ثبت شد: " + L.get(code, code)})
 
 
 def main():
