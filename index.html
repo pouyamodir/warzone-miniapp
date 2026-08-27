@@ -159,15 +159,39 @@
       const now = iranNow(), start = new Date(s.startIso), end = new Date(s.endIso);
       if (now >= end) return "closed"; if (now >= start) return "live"; return "wait";
     }
+    function isLater(s) { return s && s.startMode === "clock"; }
     function counted(s) {
       const list = s.answers || [];
-      return [...new Set([s.hostId, ...list.filter(a => a.code==="5"||a.code==="15").map(a => a.id)])];
+      const readyCodes = isLater(s) ? ["5"] : ["5","15"];
+      return [...new Set([s.hostId, ...list.filter(a => readyCodes.includes(a.code)).map(a => a.id)])];
     }
-    function label(code) {
-      return {host:"درخواست‌کننده","5":"تا ۵ دقیقه","15":"تا ۱۵ دقیقه","30":"حدود ۳۰ دقیقه — رزرو","60":"یک ساعت به بالا — رزرو",no:"نیستم"}[code] || code;
+    function label(code, s) {
+      if (code === "host") return "درخواست‌کننده";
+      if (isLater(s)) {
+        return {"5":"هستم","15":"با ۱۵ دقیقه تأخیر","30":"با نیم ساعت تأخیر","60":"با یک ساعت تأخیر",no:"نیستم"}[code] || code;
+      }
+      return {"5":"تا ۵ دقیقه","15":"تا ۱۵ دقیقه","30":"حدود ۳۰ دقیقه — رزرو","60":"یک ساعت به بالا — رزرو",no:"نیستم"}[code] || code;
     }
     function tagClass(code) {
-      if (code==="no") return "no"; if (code==="30"||code==="60") return "wait"; if (code==="host") return "host"; return "ok";
+      if (code==="no") return "no"; if (code==="15"||code==="30"||code==="60") return "wait"; if (code==="host") return "host"; return "ok";
+    }
+    function choiceButtons(s) {
+      if (isLater(s)) {
+        return `<div class="choices">
+          <button class="choice" data-ans="5">هستم</button>
+          <button class="choice" data-ans="15">با ۱۵ دقیقه تأخیر</button>
+          <button class="choice" data-ans="30">با نیم ساعت تأخیر</button>
+          <button class="choice" data-ans="60">با یک ساعت تأخیر</button>
+          <button class="choice full" data-ans="no">نیستم</button>
+        </div>`;
+      }
+      return `<div class="choices">
+        <button class="choice" data-ans="5">تا ۵ دقیقه</button>
+        <button class="choice" data-ans="15">تا ۱۵ دقیقه</button>
+        <button class="choice" data-ans="30">حدود ۳۰ دقیقه</button>
+        <button class="choice" data-ans="60">یک ساعت به بالا</button>
+        <button class="choice full" data-ans="no">نیستم</button>
+      </div>`;
     }
     function render() {
       if (!ready) return;
@@ -183,26 +207,20 @@
         (phase==="live" && n<4 ? "<br/>لابی باز می‌مونه. اگر جا خالی ماند می‌توانید منتظر دست جاری بمانید." : "") +
         (phase==="wait" ? "<br/>لابی بازه" : "");
       const rows = [{id:state.hostId,name:state.hostName,code:"host"}, ...state.answers];
-      $("people").innerHTML = rows.map(p => `<div class="person"><div class="n">${p.name}</div><div class="tag ${tagClass(p.code)}">${label(p.code)}</div></div>`).join("");
+      $("people").innerHTML = rows.map(p => `<div class="person"><div class="n">${p.name}</div><div class="tag ${tagClass(p.code)}">${label(p.code, state)}</div></div>`).join("");
       const actions = $("boardActions");
       if (me.id === state.hostId) {
         actions.innerHTML = `<button class="btn btn-soft" id="btnCancelReq">لغو درخواست</button>`;
         $("btnCancelReq").onclick = () => save(null);
       } else if (!state.answers.some(a => a.id === me.id)) {
-        actions.innerHTML = `<div class="choices">
-          <button class="choice" data-ans="5">تا ۵ دقیقه</button>
-          <button class="choice" data-ans="15">تا ۱۵ دقیقه</button>
-          <button class="choice" data-ans="30">حدود ۳۰ دقیقه</button>
-          <button class="choice" data-ans="60">یک ساعت به بالا</button>
-          <button class="choice full" data-ans="no">نیستم</button>
-        </div>`;
+        actions.innerHTML = choiceButtons(state);
         actions.querySelectorAll("[data-ans]").forEach(b => b.onclick = () => {
           state.answers = state.answers.filter(a => a.id !== me.id);
           state.answers.push({ id: me.id, name: me.name, code: b.dataset.ans, at: Date.now() });
           save(state);
         });
       } else {
-        actions.innerHTML = `<div class="muted">جواب تو ثبت شد: ${label(state.answers.find(a => a.id===me.id).code)}</div>`;
+        actions.innerHTML = `<div class="muted">جواب تو ثبت شد: ${label(state.answers.find(a => a.id===me.id).code, state)}</div>`;
       }
       show("viewBoard");
     }
@@ -220,7 +238,11 @@
     $("btnPublish").onclick = () => {
       const start = startMode==="now" ? iranNow() : parseHHMM($("clock").value || fmt(iranNow()));
       const end = new Date(start.getTime() + duration * 60000);
-      save({ hostId: me.id, hostName: me.name, startIso: start.toISOString(), endIso: end.toISOString(), startLabel: fmt(start), endLabel: fmt(end), answers: [] });
+      save({
+        hostId: me.id, hostName: me.name, startMode: startMode,
+        startIso: start.toISOString(), endIso: end.toISOString(),
+        startLabel: fmt(start), endLabel: fmt(end), answers: []
+      });
     };
     $("btnRules1").onclick = $("btnRules2").onclick = () => $("rules").classList.add("on");
     $("closeRules").onclick = () => $("rules").classList.remove("on");
