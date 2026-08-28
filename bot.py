@@ -94,12 +94,15 @@ def save_member(user):
     )
 
 
+def member_ids():
+    return [str(uid) for uid in (db_get("members") or {}).keys()]
+
+
 def notify_new_request(lobby, old):
     if not lobby or not lobby.get("hostId"):
         return
     if (old or {}).get("hostId") == lobby.get("hostId") and (old or {}).get("startIso") == lobby.get("startIso"):
         return
-    members = db_get("members") or {}
     text = (
         f"{lobby.get('hostName', 'یکی')} پرسیده: کسی هست برای بازی؟\n"
         f"شروع: {lobby.get('startLabel')}\n"
@@ -107,8 +110,8 @@ def notify_new_request(lobby, old):
     )
     host = str(lobby.get("hostId"))
     kb = keyboard_for(lobby)
-    for uid in members:
-        if str(uid) == host:
+    for uid in member_ids():
+        if uid == host:
             continue
         try:
             tg("sendMessage", {"chat_id": int(uid), "text": text, "reply_markup": kb})
@@ -125,22 +128,24 @@ def notify_new_answers(lobby, old):
         return
     L = labels_for(lobby)
     prev = {str(a.get("id")): a for a in (old.get("answers") or []) if a}
+    members = member_ids()
+    host = str(lobby.get("hostId") or "")
+    if host and host not in members:
+        members.append(host)
     for a in lobby.get("answers") or []:
         if not a:
             continue
         oid = str(a.get("id"))
         prev_a = prev.get(oid)
         if prev_a is None or prev_a.get("code") != a.get("code"):
-            try:
-                tg(
-                    "sendMessage",
-                    {
-                        "chat_id": int(lobby["hostId"]),
-                        "text": f"{a.get('name', 'بازیکن')}: {L.get(a.get('code'), a.get('code'))}",
-                    },
-                )
-            except Exception as e:
-                print("host notify fail", e)
+            text = f"{a.get('name', 'بازیکن')}: {L.get(a.get('code'), a.get('code'))}"
+            for uid in members:
+                if uid == oid:
+                    continue
+                try:
+                    tg("sendMessage", {"chat_id": int(uid), "text": text})
+                except Exception as e:
+                    print("answer notify fail", uid, e)
 
 
 def handle_update(upd):
