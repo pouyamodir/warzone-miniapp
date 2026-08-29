@@ -2,12 +2,17 @@ import os
 import time
 import json
 import threading
+from datetime import datetime, timezone
 import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 TOKEN = os.environ["BOT_TOKEN"]
 API = f"https://api.telegram.org/bot{TOKEN}"
 DB = "https://esquad-warzone-default-rtdb.europe-west1.firebasedatabase.app"
+
+# اکانت تست را اینجا بگذار تا در آمار نیاید
+STATS_HIDE_IDS = set()
+STATS_HIDE_USERNAMES = set()
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -31,7 +36,6 @@ LABELS_NOW = {
     "60": "یک ساعت به بالا",
     "no": "نیستم",
 }
-
 LABELS_LATER = {
     "5": "هستم",
     "15": "با ۱۵ دقیقه تأخیر",
@@ -53,14 +57,8 @@ def keyboard_for(lobby):
     L = labels_for(lobby)
     return {
         "inline_keyboard": [
-            [
-                {"text": L["5"], "callback_data": "ans:5"},
-                {"text": L["15"], "callback_data": "ans:15"},
-            ],
-            [
-                {"text": L["30"], "callback_data": "ans:30"},
-                {"text": L["60"], "callback_data": "ans:60"},
-            ],
+            [{"text": L["5"], "callback_data": "ans:5"}, {"text": L["15"], "callback_data": "ans:15"}],
+            [{"text": L["30"], "callback_data": "ans:30"}, {"text": L["60"], "callback_data": "ans:60"}],
             [{"text": L["no"], "callback_data": "ans:no"}],
             [{"text": "باز کردن تابلو", "url": "https://t.me/warzonesquad_bot/squad"}],
         ]
@@ -81,6 +79,18 @@ def tg(method, payload):
     return requests.post(f"{API}/{method}", json=payload, timeout=30).json()
 
 
+def notice_key(lobby):
+    return str((lobby or {}).get("startIso") or "x").replace(".", "_").replace(":", "-")
+
+
+def hidden(uid, info=None):
+    uid = str(uid)
+    if uid in STATS_HIDE_IDS:
+        return True
+    un = str((info or {}).get("username") or "").lstrip("@").lower()
+    return un in STATS_HIDE_USERNAMES
+
+
 def save_member(user):
     if not user or "id" not in user:
         return
@@ -94,8 +104,43 @@ def save_member(user):
     )
 
 
+def members_map():
+    return db_get("members") or {}
+
+
 def member_ids():
-    return [str(uid) for uid in (db_get("members") or {}).keys()]
+    return [str(uid) for uid in members_map().keys()]
+
+
+def card_text(lobby):
+    L = labels_for(lobby)
+    answers = lobby.get("answers") or []
+    ready = {"5", "15"} if not is_later(lobby) else {"5"}
+    n = 1 + len({str(a.get("id")) for a in answers if a.get("code") in ready})
+    n = min(4, n)
+    lines = [
+        f"{lobby.get('hostName', 'یکی')} پرسیده: کسی هست برای بازی؟",
+        f"شروع: {lobby.get('startLabel')} — حدوداً تا {lobby.get('endLabel')}",
+        f"{n} از ۴",
+        "",
+        f"{lobby.get('hostName', 'میزبان')}: درخواست‌کننده",
+    ]
+    for a in answers:
+        lines.append(f"{a.get('name', 'بازیکن')}: {L.get(a.get('code'), a.get('code'))}")
+    return "\n".join(lines)
+
+
+def send_or_edit_card(uid, lobby):
+    key = notice_key(lobby)
+    mid = db_get(f"notices/{key}/{uid}")
+    payload = {"chat_id": int(uid), "text": card_text(lobby), "reply_markup": keyboard_for(lobby)}
+    if mid:
+        r = tg("editMessageText", {"chat_id": int(uid), "message_id": int(mid), "text": payload["text"], "reply_markup": payload["reply_markup"]})
+        if r.get("ok"):
+            return
+    r = tg("sendMessage", payload)
+    if r.get("ok"):
+        db_put(f"notices/{key}/{uid}", r["result"]["message_id"])
 
 
 def notify_new_request(lobby, old):
@@ -103,18 +148,12 @@ def notify_new_request(lobby, old):
         return
     if (old or {}).get("hostId") == lobby.get("hostId") and (old or {}).get("startIso") == lobby.get("startIso"):
         return
-    text = (
-        f"{lobby.get('hostName', 'یکی')} پرسیده: کسی هست برای بازی؟\n"
-        f"شروع: {lobby.get('startLabel')}\n"
-        f"حدوداً تا {lobby.get('endLabel')}"
-    )
     host = str(lobby.get("hostId"))
-    kb = keyboard_for(lobby)
     for uid in member_ids():
         if uid == host:
             continue
         try:
-            tg("sendMessage", {"chat_id": int(uid), "text": text, "reply_markup": kb})
+            send_or_edit_card(uid, lobby)
         except Exception as e:
             print("send fail", uid, e)
 
@@ -132,12 +171,14 @@ def notify_new_answers(lobby, old):
     host = str(lobby.get("hostId") or "")
     if host and host not in members:
         members.append(host)
+    changed = False
     for a in lobby.get("answers") or []:
         if not a:
             continue
         oid = str(a.get("id"))
         prev_a = prev.get(oid)
         if prev_a is None or prev_a.get("code") != a.get("code"):
+            changed = True
             text = f"{a.get('name', 'بازیکن')}: {L.get(a.get('code'), a.get('code'))}"
             for uid in members:
                 if uid == oid:
@@ -146,6 +187,62 @@ def notify_new_answers(lobby, old):
                     tg("sendMessage", {"chat_id": int(uid), "text": text})
                 except Exception as e:
                     print("answer notify fail", uid, e)
+    if changed:
+        for uid in members:
+            if uid == host:
+                continue
+            try:
+                send_or_edit_card(uid, lobby)
+            except Exception as e:
+                print("edit card fail", uid, e)
+
+
+def tally_noreply(old, new):
+    if not old or not old.get("hostId"):
+        return
+    if new and str(new.get("hostId")) == str(old.get("hostId")) and new.get("startIso") == old.get("startIso"):
+        return
+    answered = {str(a.get("id")) for a in (old.get("answers") or [])}
+    host = str(old.get("hostId"))
+    members = members_map()
+    for uid, info in members.items():
+        uid = str(uid)
+        info = info or {}
+        if uid == host or uid in answered or hidden(uid, info):
+            continue
+        row = db_get(f"stats/noreply/{uid}") or {}
+        db_put(
+            f"stats/noreply/{uid}",
+            {
+                "name": info.get("name") or row.get("name") or "بازیکن",
+                "username": info.get("username") or row.get("username") or "",
+                "count": int(row.get("count") or 0) + 1,
+            },
+        )
+
+
+def maybe_remind(lobby):
+    if not lobby or lobby.get("startMode") != "clock" or lobby.get("reminded") or not lobby.get("startIso"):
+        return
+    try:
+        start = datetime.fromisoformat(lobby["startIso"].replace("Z", "+00:00"))
+    except Exception:
+        return
+    now = datetime.now(timezone.utc)
+    left = (start - now).total_seconds()
+    if left > 10 * 60 or left < 0:
+        return
+    skip = {str(a.get("id")) for a in (lobby.get("answers") or []) if a.get("code") == "no"}
+    text = f"۱۰ دقیقه تا شروع — {lobby.get('hostName', 'یکی')} درخواست داده بود."
+    for uid in member_ids() + [str(lobby.get("hostId"))]:
+        if str(uid) in skip:
+            continue
+        try:
+            tg("sendMessage", {"chat_id": int(uid), "text": text})
+        except Exception as e:
+            print("remind fail", uid, e)
+    lobby["reminded"] = True
+    db_put("lobby", lobby)
 
 
 def handle_update(upd):
@@ -210,9 +307,13 @@ def main():
             if now - last_check >= 3:
                 cur = db_get("lobby")
                 if json.dumps(cur, sort_keys=True) != json.dumps(last, sort_keys=True):
+                    tally_noreply(last, cur)
                     notify_new_request(cur, last)
                     notify_new_answers(cur, last)
                     last = cur
+                if cur:
+                    maybe_remind(cur)
+                    last = db_get("lobby")
                 last_check = now
             payload = {"timeout": 2}
             if offset is not None:
