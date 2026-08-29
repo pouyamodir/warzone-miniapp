@@ -12,7 +12,7 @@ DB = "https://esquad-warzone-default-rtdb.europe-west1.firebasedatabase.app"
 
 STATS_HIDE_IDS = set()
 STATS_HIDE_USERNAMES = {"pouya_modir"}
-REPLY_WINDOW = 100 * 60
+REPLY_WINDOW = 90 * 60
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
