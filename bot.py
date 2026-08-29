@@ -10,9 +10,8 @@ TOKEN = os.environ["BOT_TOKEN"]
 API = f"https://api.telegram.org/bot{TOKEN}"
 DB = "https://esquad-warzone-default-rtdb.europe-west1.firebasedatabase.app"
 
-# اکانت تست را اینجا بگذار تا در آمار نیاید
 STATS_HIDE_IDS = set()
-STATS_HIDE_USERNAMES = set()
+STATS_HIDE_USERNAMES = {"pouya_modir"}
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -197,10 +196,23 @@ def notify_new_answers(lobby, old):
                 print("edit card fail", uid, e)
 
 
+def started_already(lobby):
+    iso = (lobby or {}).get("startIso")
+    if not iso:
+        return True
+    try:
+        start = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except Exception:
+        return True
+    return datetime.now(timezone.utc) >= start
+
+
 def tally_noreply(old, new):
     if not old or not old.get("hostId"):
         return
     if new and str(new.get("hostId")) == str(old.get("hostId")) and new.get("startIso") == old.get("startIso"):
+        return
+    if not started_already(old):
         return
     answered = {str(a.get("id")) for a in (old.get("answers") or [])}
     host = str(old.get("hostId"))
