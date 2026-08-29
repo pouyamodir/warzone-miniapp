@@ -12,6 +12,7 @@ DB = "https://esquad-warzone-default-rtdb.europe-west1.firebasedatabase.app"
 
 STATS_HIDE_IDS = set()
 STATS_HIDE_USERNAMES = {"pouya_modir"}
+REPLY_WINDOW = 100 * 60
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -196,15 +197,18 @@ def notify_new_answers(lobby, old):
                 print("edit card fail", uid, e)
 
 
-def started_already(lobby):
+def opened_ts(lobby):
+    raw = (lobby or {}).get("openedAt")
+    if raw:
+        n = float(raw)
+        return n / 1000 if n > 1e12 else n
     iso = (lobby or {}).get("startIso")
     if not iso:
-        return True
+        return None
     try:
-        start = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
     except Exception:
-        return True
-    return datetime.now(timezone.utc) >= start
+        return None
 
 
 def tally_noreply(old, new):
@@ -212,7 +216,8 @@ def tally_noreply(old, new):
         return
     if new and str(new.get("hostId")) == str(old.get("hostId")) and new.get("startIso") == old.get("startIso"):
         return
-    if not started_already(old):
+    opened = opened_ts(old)
+    if opened is None or (time.time() - opened) < REPLY_WINDOW:
         return
     answered = {str(a.get("id")) for a in (old.get("answers") or [])}
     host = str(old.get("hostId"))
