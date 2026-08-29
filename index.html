@@ -77,6 +77,7 @@
       <div class="stack">
         <button class="btn btn-gold" id="btnAsk">کسی هست برای بازی؟</button>
         <button class="btn btn-rules" id="btnRules1">قوانین</button>
+        <button class="btn btn-rules" id="btnStats1">بی‌جوابی</button>
       </div>
     </section>
     <section id="viewCreate" class="card" hidden>
@@ -110,6 +111,7 @@
       <div class="people" id="people"></div>
       <div class="stack" id="boardActions"></div>
       <button class="btn btn-rules" id="btnRules2">قوانین</button>
+      <button class="btn btn-rules" id="btnStats2">بی‌جوابی</button>
     </section>
   </div>
   <div class="sheet" id="rules">
@@ -127,9 +129,19 @@
       <div class="stack"><button class="btn btn-gold" id="closeRules">باشه</button></div>
     </div>
   </div>
+  <div class="sheet" id="stats">
+    <div class="inner">
+      <h3>بی‌جوابی</h3>
+      <p class="muted" style="margin-bottom:12px">تعداد لابی‌هایی که عضو بود و هیچ جوابی نداد، حتی نیستم.</p>
+      <div class="people" id="statsList"></div>
+      <div class="stack"><button class="btn btn-gold" id="closeStats">باشه</button></div>
+    </div>
+  </div>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
   <script>
+    const STATS_HIDE_IDS = [];
+    const STATS_HIDE_USERNAMES = [];
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0b0c0e"); tg.setBackgroundColor("#0b0c0e"); } catch(e) {} }
     const user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
@@ -147,11 +159,12 @@
       appId: "1:429017395304:web:d3bd45d06b10ca306f8bdd"
     });
     const lobbyRef = firebase.database().ref("lobby");
+    const statsRef = firebase.database().ref("stats/noreply");
     const iranNow = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tehran" }));
     const pad = (n) => String(n).padStart(2,"0");
     const fmt = (d) => pad(d.getHours()) + ":" + pad(d.getMinutes());
     const save = (s) => lobbyRef.set(s || null);
-    let startMode = "now", duration = 120, state = null, ready = false;
+    let startMode = "now", duration = 120, state = null, ready = false, statsData = {};
     const $ = (id) => document.getElementById(id);
     const show = (id) => ["viewIdle","viewCreate","viewBoard"].forEach(v => $(v).hidden = v !== id);
     function parseHHMM(str) { const [h,m] = str.split(":").map(Number); const d = iranNow(); d.setHours(h,m,0,0); return d; }
@@ -175,23 +188,22 @@
     function tagClass(code) {
       if (code==="no") return "no"; if (code==="15"||code==="30"||code==="60") return "wait"; if (code==="host") return "host"; return "ok";
     }
-    function choiceButtons(s) {
-      if (isLater(s)) {
-        return `<div class="choices">
-          <button class="choice" data-ans="5">هستم</button>
-          <button class="choice" data-ans="15">با ۱۵ دقیقه تأخیر</button>
-          <button class="choice" data-ans="30">با نیم ساعت تأخیر</button>
-          <button class="choice" data-ans="60">با یک ساعت تأخیر</button>
-          <button class="choice full" data-ans="no">نیستم</button>
-        </div>`;
-      }
-      return `<div class="choices">
-        <button class="choice" data-ans="5">تا ۵ دقیقه</button>
-        <button class="choice" data-ans="15">تا ۱۵ دقیقه</button>
-        <button class="choice" data-ans="30">حدود ۳۰ دقیقه</button>
-        <button class="choice" data-ans="60">یک ساعت به بالا</button>
-        <button class="choice full" data-ans="no">نیستم</button>
-      </div>`;
+    function choiceButtons(s, selected) {
+      const items = isLater(s) ? [
+        ["5","هستم"],["15","با ۱۵ دقیقه تأخیر"],["30","با نیم ساعت تأخیر"],["60","با یک ساعت تأخیر"],["no","نیستم"]
+      ] : [
+        ["5","تا ۵ دقیقه"],["15","تا ۱۵ دقیقه"],["30","حدود ۳۰ دقیقه"],["60","یک ساعت به بالا"],["no","نیستم"]
+      ];
+      return `<div class="choices">` + items.map(([code, text], i) =>
+        `<button class="choice${code===selected?" on":""}${code==="no"?" full":""}" data-ans="${code}">${text}</button>`
+      ).join("") + `</div>`;
+    }
+    function bindAnswers() {
+      $("boardActions").querySelectorAll("[data-ans]").forEach(b => b.onclick = () => {
+        state.answers = (state.answers || []).filter(a => a.id !== me.id);
+        state.answers.push({ id: me.id, name: me.name, code: b.dataset.ans, at: Date.now() });
+        save(state);
+      });
     }
     function render() {
       if (!ready) return;
@@ -209,20 +221,24 @@
       const rows = [{id:state.hostId,name:state.hostName,code:"host"}, ...state.answers];
       $("people").innerHTML = rows.map(p => `<div class="person"><div class="n">${p.name}</div><div class="tag ${tagClass(p.code)}">${label(p.code, state)}</div></div>`).join("");
       const actions = $("boardActions");
+      const mine = state.answers.find(a => a.id === me.id);
       if (me.id === state.hostId) {
         actions.innerHTML = `<button class="btn btn-soft" id="btnCancelReq">لغو درخواست</button>`;
         $("btnCancelReq").onclick = () => save(null);
-      } else if (!state.answers.some(a => a.id === me.id)) {
-        actions.innerHTML = choiceButtons(state);
-        actions.querySelectorAll("[data-ans]").forEach(b => b.onclick = () => {
-          state.answers = state.answers.filter(a => a.id !== me.id);
-          state.answers.push({ id: me.id, name: me.name, code: b.dataset.ans, at: Date.now() });
-          save(state);
-        });
       } else {
-        actions.innerHTML = `<div class="muted">جواب تو ثبت شد: ${label(state.answers.find(a => a.id===me.id).code, state)}</div>`;
+        actions.innerHTML = (mine ? `<div class="muted">جواب فعلی: ${label(mine.code, state)} — می‌توانی عوض کنی</div>` : "") + choiceButtons(state, mine && mine.code);
+        bindAnswers();
       }
       show("viewBoard");
+    }
+    function renderStats() {
+      const rows = Object.entries(statsData || {}).map(([id, row]) => ({id, ...(row||{})}))
+        .filter(r => !STATS_HIDE_IDS.includes(String(r.id)) && !STATS_HIDE_USERNAMES.includes(String(r.username||"").replace("@","").toLowerCase()))
+        .filter(r => Number(r.count||0) > 0)
+        .sort((a,b) => Number(b.count) - Number(a.count));
+      $("statsList").innerHTML = rows.length
+        ? rows.map(r => `<div class="person"><div class="n">${r.name||"بازیکن"}</div><div class="tag wait">${r.count} بار</div></div>`).join("")
+        : `<div class="muted">هنوز سابقه‌ای نیست.</div>`;
     }
     $("btnAsk").onclick = () => show("viewCreate");
     $("btnCancelCreate").onclick = () => render();
@@ -241,14 +257,20 @@
       save({
         hostId: me.id, hostName: me.name, startMode: startMode,
         startIso: start.toISOString(), endIso: end.toISOString(),
-        startLabel: fmt(start), endLabel: fmt(end), answers: []
+        startLabel: fmt(start), endLabel: fmt(end), answers: [], reminded: false
       });
     };
-    $("btnRules1").onclick = $("btnRules2").onclick = () => $("rules").classList.add("on");
-    $("closeRules").onclick = () => $("rules").classList.remove("on");
-    $("rules").onclick = (e) => { if (e.target.id==="rules") $("rules").classList.remove("on"); };
+    function openSheet(id) { $(id).classList.add("on"); }
+    function closeSheet(id) { $(id).classList.remove("on"); }
+    $("btnRules1").onclick = $("btnRules2").onclick = () => openSheet("rules");
+    $("closeRules").onclick = () => closeSheet("rules");
+    $("rules").onclick = (e) => { if (e.target.id==="rules") closeSheet("rules"); };
+    $("btnStats1").onclick = $("btnStats2").onclick = () => { renderStats(); openSheet("stats"); };
+    $("closeStats").onclick = () => closeSheet("stats");
+    $("stats").onclick = (e) => { if (e.target.id==="stats") closeSheet("stats"); };
     $("clock").value = fmt(iranNow());
     lobbyRef.on("value", (snap) => { ready = true; state = snap.val(); render(); });
+    statsRef.on("value", (snap) => { statsData = snap.val() || {}; if ($("stats").classList.contains("on")) renderStats(); });
   </script>
 </body>
 </html>
