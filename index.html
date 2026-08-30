@@ -140,8 +140,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
   <script>
-    const STATS_HIDE_IDS = [];
-    const STATS_HIDE_USERNAMES = ["pouya_modir"];
+    const STATS_HIDE_IDS = ["59293747", "6812317446"];
+    const STATS_HIDE_USERNAMES = ["pouya_modir", "poyamodir"];
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0b0c0e"); tg.setBackgroundColor("#0b0c0e"); } catch(e) {} }
     const user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
@@ -196,6 +196,12 @@
         save(state);
       });
     }
+    function hiddenStat(r) {
+      if (STATS_HIDE_IDS.includes(String(r.id))) return true;
+      const u = String(r.username || "").replace("@","").toLowerCase();
+      if (STATS_HIDE_USERNAMES.includes(u) || STATS_HIDE_USERNAMES.includes(u.replace(/_/g,""))) return true;
+      return false;
+    }
     function render() {
       if (!ready) return;
       if (state && computePhase(state)==="closed") { save(null); return; }
@@ -224,7 +230,7 @@
     }
     function renderStats() {
       const rows = Object.entries(statsData || {}).map(([id, row]) => ({id, ...(row||{})}))
-        .filter(r => !STATS_HIDE_IDS.includes(String(r.id)) && !STATS_HIDE_USERNAMES.includes(String(r.username||"").replace("@","").toLowerCase()))
+        .filter(r => !hiddenStat(r))
         .filter(r => Number(r.count||0) > 0)
         .sort((a,b) => Number(b.count) - Number(a.count));
       $("statsList").innerHTML = rows.length
