@@ -10,8 +10,8 @@ TOKEN = os.environ["BOT_TOKEN"]
 API = f"https://api.telegram.org/bot{TOKEN}"
 DB = "https://esquad-warzone-default-rtdb.europe-west1.firebasedatabase.app"
 
-STATS_HIDE_IDS = {"59293747", "6812317446"}
-STATS_HIDE_USERNAMES = {"pouya_modir", "poyamodir"}
+STATS_HIDE_IDS = {"6812317446"}
+STATS_HIDE_USERNAMES = {"pouya_modir"}
 REPLY_WINDOW = 90 * 60
 
 class H(BaseHTTPRequestHandler):
@@ -92,7 +92,7 @@ def hidden(uid, info=None):
     if uid in STATS_HIDE_IDS:
         return True
     un = sid((info or {}).get("username")).lstrip("@").lower()
-    return un in STATS_HIDE_USERNAMES
+    return un == "pouya_modir"
 
 
 def save_member(user):
