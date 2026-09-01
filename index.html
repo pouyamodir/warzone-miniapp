@@ -119,5 +119,225 @@
       <button class="btn btn-rules" id="btnAdmin2" hidden>ادمین</button>
     </section>
   </div>
+  <div class="sheet" id="rules">
+    <div class="inner">
+      <h3>قوانین اسکواد</h3>
+      <ol>
+        <li>اولویت اسکواد با کسانی است که زودتر جواب می‌دهند.</li>
+        <li>در صورت عدم جواب و هماهنگی برای بازی، اگر اسکواد با افراد غریبه تکمیل شده باشد اعضای اصلی به بازی خود ادامه می‌دهند. مگر اینکه فرد در گروه اعلام کند با تأخیر می‌آید؛ در این صورت فقط دست جاری را باید در لابی منتظر بماند.</li>
+        <li>از اضافه کردن افراد غریبه و بدون هماهنگی با سایر اعضا خودداری کنید.</li>
+        <li>دموکراسی بر رأی فردی اولویت دارد.</li>
+        <li>تأخیر بیش از زمان اعلام‌شده باید به‌صورت خصوصی یا تلفنی اعلام شود. حداکثر تأخیر مجاز ۵ دقیقه بعد از زمانی است که فرد گفته می‌رسد؛ بیشتر از آن را درخواست‌کننده می‌تواند به‌عنوان تأخیر ثبت کند.</li>
+        <li>اگر به نت دسترسی دارید حتماً به درخواست بازی پاسخ دهید و «نیستم» را ثبت کنید.</li>
+        <li>اگر کسی بدون اعلام در این بات در بازی باشد، یعنی می‌خواهد تنها یا با گروهی دیگر بازی کند.</li>
+      </ol>
+      <div class="stack"><button class="btn btn-gold" id="closeRules">باشه</button></div>
+    </div>
+  </div>
+  <div class="sheet" id="stats">
+    <div class="inner">
+      <h3>آمار مشارکت</h3>
+      <p class="muted" style="margin-bottom:12px">بی‌جوابی یعنی هیچ جوابی به درخواست دیگران داده نشده، از شروع لابی تا یک ساعت و سی دقیقه. اگر لابی زودتر بسته شود شمارنده اضافه نمی‌شود. تأخیر یعنی دیرتر از زمان اعلام‌شده به‌اضافه ۵ دقیقه. مرتب‌سازی از بیشترین مجموع.</p>
+      <div class="people" id="statsList"></div>
+      <div class="stack"><button class="btn btn-gold" id="closeStats">باشه</button></div>
+    </div>
+  </div>
+  <div class="sheet" id="admin">
+    <div class="inner">
+      <h3>ادمین</h3>
+      <p class="muted" style="margin-bottom:12px">فقط خودت این را می‌بینی. بی‌جوابی و تأخیر را دستی کم و زیاد کن.</p>
+      <div class="people" id="adminList"></div>
+      <div class="stack"><button class="btn btn-gold" id="closeAdmin">باشه</button></div>
+    </div>
+  </div>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <script>
+    const ADMIN_IDS = ["59293747"];
+    const STATS_HIDE_IDS = ["6812317446"];
+    const STATS_HIDE_USERNAMES = ["pouya_modir"];
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0b0c0e"); tg.setBackgroundColor("#0b0c0e"); } catch(e) {} }
+    const user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+    const me = { id: String(user.id || "local"), name: [user.first_name, user.last_name].filter(Boolean).join(" ") || "بازیکن" };
+    const isAdmin = ADMIN_IDS.includes(me.id);
+    if (isAdmin) { const a1=document.getElementById("btnAdmin1"); const a2=document.getElementById("btnAdmin2"); if(a1)a1.hidden=false; if(a2)a2.hidden=false; }
+    document.getElementById("hello").innerHTML = me.name + '<span>تابلو اسکواد — وقت ایران</span>';
+    document.getElementById("meChip").textContent = user.username ? "@"+user.username : "عضو";
+    firebase.initializeApp({
+      apiKey: "AIzaSyAyIDyPMx1eKgryRSvHpDcQ5G-rh8f_qPQ",
+      authDomain: "esquad-warzone.firebaseapp.com",
+      databaseURL: "https://esquad-warzone-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "esquad-warzone",
+      storageBucket: "esquad-warzone.firebasestorage.app",
+      messagingSenderId: "429017395304",
+      appId: "1:429017395304:web:d3bd45d06b10ca306f8bdd"
+    });
+    const db = firebase.database();
+    const lobbyRef = db.ref("lobby");
+    const statsRef = db.ref("stats/noreply");
+    const lateRef = db.ref("stats/late");
+    const membersRef = db.ref("members");
+    const iranNow = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tehran" }));
+    const pad = (n) => String(n).padStart(2,"0");
+    const fmt = (d) => pad(d.getHours()) + ":" + pad(d.getMinutes());
+    const save = (s) => lobbyRef.set(s || null);
+    let startMode = "now", duration = 120, state = null, ready = false, statsData = {}, lateData = {}, membersData = {};
+    const $ = (id) => document.getElementById(id);
+    const show = (id) => ["viewIdle","viewCreate","viewBoard"].forEach(v => $(v).hidden = v !== id);
+    function parseHHMM(str) { const [h,m] = str.split(":").map(Number); const d = iranNow(); d.setHours(h,m,0,0); return d; }
+    function computePhase(s) {
+      const now = iranNow(), start = new Date(s.startIso), end = new Date(s.endIso);
+      if (now >= end) return "closed"; if (now >= start) return "live"; return "wait";
+    }
+    function isLater(s) { return s && s.startMode === "clock"; }
+    function counted(s) {
+      const list = s.answers || [];
+      const readyCodes = isLater(s) ? ["5"] : ["5","15"];
+      return [...new Set([s.hostId, ...list.filter(a => readyCodes.includes(a.code)).map(a => a.id)])];
+    }
+    function label(code, s) {
+      if (code === "host") return "درخواست‌کننده";
+      if (isLater(s)) return {"5":"هستم","15":"با ۱۵ دقیقه تأخیر","30":"با نیم ساعت تأخیر","60":"با یک ساعت تأخیر",no:"نیستم"}[code] || code;
+      return {"5":"تا ۵ دقیقه","15":"تا ۱۵ دقیقه","30":"حدود ۳۰ دقیقه — رزرو","60":"یک ساعت به بالا — رزرو",no:"نیستم"}[code] || code;
+    }
+    function tagClass(code) {
+      if (code==="no") return "no"; if (code==="15"||code==="30"||code==="60") return "wait"; if (code==="host") return "host"; return "ok";
+    }
+    function choiceButtons(s, selected) {
+      const items = isLater(s) ? [["5","هستم"],["15","با ۱۵ دقیقه تأخیر"],["30","با نیم ساعت تأخیر"],["60","با یک ساعت تأخیر"],["no","نیستم"]] : [["5","تا ۵ دقیقه"],["15","تا ۱۵ دقیقه"],["30","حدود ۳۰ دقیقه"],["60","یک ساعت به بالا"],["no","نیستم"]];
+      return `<div class="choices">` + items.map(([code, text]) => `<button class="choice${code===selected?" on":""}${code==="no"?" full":""}" data-ans="${code}">${text}</button>`).join("") + `</div>`;
+    }
+    function bindAnswers() {
+      $("boardActions").querySelectorAll("[data-ans]").forEach(b => b.onclick = () => {
+        state.answers = (state.answers || []).filter(a => a.id !== me.id);
+        state.answers.push({ id: me.id, name: me.name, code: b.dataset.ans, at: Date.now() });
+        save(state);
+      });
+    }
+    function hiddenStat(r) {
+      if (STATS_HIDE_IDS.includes(String(r.id))) return true;
+      const u = String(r.username || "").replace("@","").toLowerCase();
+      return STATS_HIDE_USERNAMES.includes(u);
+    }
+    function render() {
+      if (!ready) return;
+      if (state && computePhase(state)==="closed") { save(null); return; }
+      if (!state) { show("viewIdle"); return; }
+      state.answers = state.answers || [];
+      const phase = computePhase(state);
+      const n = Math.min(4, counted(state).length);
+      $("num").textContent = n;
+      $("hostLine").textContent = state.hostName + " درخواست داده";
+      $("phase").textContent = phase==="wait" ? "در انتظار پر شدن اسکواد" : (n>=4 ? "اسکواد کامل شد — بازی شروع شده" : "بازی شروع شد");
+      $("timeLine").innerHTML = "شروع " + state.startLabel + " — حدوداً تا " + state.endLabel +
+        (phase==="live" && n<4 ? "<br/>لابی باز می‌مونه. اگر جا خالی ماند می‌توانید منتظر دست جاری بمانید." : "") +
+        (phase==="wait" ? "<br/>لابی بازه" : "") +
+        (me.id===state.hostId ? "<br/>روی اسم کسی بزن تا تأخیر ثبت شود." : "");
+      const rows = [{id:state.hostId,name:state.hostName,code:"host"}, ...state.answers];
+      $("people").innerHTML = rows.map(p => {
+        const marked = (state.lates || []).some(x => String(x.id)===String(p.id));
+        const canTap = me.id===state.hostId && p.code!=="host" && p.code!=="no";
+        return `<div class="person${canTap?" tap":""}" data-pid="${p.id}"><div class="n">${p.name}${marked?" · تأخیر":""}</div><div class="tag ${tagClass(p.code)}">${label(p.code, state)}</div></div>`;
+      }).join("");
+      if (me.id === state.hostId) {
+        $("people").querySelectorAll(".tap").forEach(el => el.onclick = () => {
+          const person = rows.find(p => String(p.id)===String(el.dataset.pid));
+          if (!person) return;
+          const exists = (state.lates || []).some(x => String(x.id)===String(person.id));
+          if (exists) { alert("برای این لابی قبلاً ثبت شده."); return; }
+          if (!confirm("تأخیر برای " + person.name + " ثبت شود؟ فقط اگر بیشتر از ۵ دقیقه از زمان اعلام‌شده گذشته.")) return;
+          state.lates = (state.lates || []).concat([{id:String(person.id), name:person.name, status:"pending", at:Date.now()}]);
+          save(state);
+        });
+      }
+      const actions = $("boardActions");
+      const mine = state.answers.find(a => a.id === me.id);
+      if (me.id === state.hostId) {
+        actions.innerHTML = `<button class="btn btn-soft" id="btnCancelReq">لغو درخواست</button>`;
+        $("btnCancelReq").onclick = () => save(null);
+      } else {
+        actions.innerHTML = (mine ? `<div class="muted">جواب فعلی: ${label(mine.code, state)} — می‌توانی عوض کنی</div>` : "") + choiceButtons(state, mine && mine.code);
+        bindAnswers();
+      }
+      show("viewBoard");
+    }
+    function renderStats() {
+      const ids = new Set([...Object.keys(statsData||{}), ...Object.keys(lateData||{})]);
+      const rows = [...ids].map(id => {
+        const n = statsData[id] || {};
+        const l = lateData[id] || {};
+        return {id, name: n.name || l.name || "بازیکن", username: n.username || l.username || "", noreply: Number(n.count||0), late: Number(l.count||0)};
+      }).map(r => ({...r, total: r.noreply + r.late}))
+        .filter(r => !hiddenStat(r))
+        .filter(r => r.total > 0)
+        .sort((a,b) => b.total - a.total || b.noreply - a.noreply || b.late - a.late);
+      $("statsList").innerHTML = rows.length
+        ? `<div class="person"><div class="n">اسم</div><div class="cols"><span>بی‌جوابی</span><span>تأخیر</span><span>جمع</span></div></div>` +
+          rows.map(r => `<div class="person"><div class="n">${r.name}</div><div class="cols"><span>${r.noreply}</span><span>${r.late}</span><span>${r.total}</span></div></div>`).join("")
+        : `<div class="muted">هنوز سابقه‌ای نیست.</div>`;
+    }
+    function bump(kind, id, name, username, delta) {
+      const ref = db.ref("stats/"+kind+"/"+id);
+      ref.once("value").then(snap => {
+        const row = snap.val() || {};
+        const count = Math.max(0, Number(row.count||0) + delta);
+        ref.set({name: name||row.name||"بازیکن", username: username||row.username||"", count});
+      });
+    }
+    function renderAdmin() {
+      if (!isAdmin) return;
+      const rows = Object.entries(membersData||{}).map(([id,row]) => ({id, ...(row||{})})).filter(r => !hiddenStat(r));
+      $("adminList").innerHTML = rows.length ? rows.map(r => {
+        const n = Number((statsData[r.id]||{}).count||0);
+        const l = Number((lateData[r.id]||{}).count||0);
+        return `<div class="person" style="flex-wrap:wrap;gap:8px"><div class="n">${r.name||"بازیکن"}<div class="muted">بی‌جوابی ${n} · تأخیر ${l}</div></div>
+          <div><button class="tiny" data-b="noreply:${r.id}:1">بی‌جوابی +</button><button class="tiny" data-b="noreply:${r.id}:-1">−</button>
+          <button class="tiny" data-b="late:${r.id}:1">تأخیر +</button><button class="tiny" data-b="late:${r.id}:-1">−</button></div></div>`;
+      }).join("") : `<div class="muted">عضوی نیست.</div>`;
+      $("adminList").querySelectorAll("[data-b]").forEach(b => b.onclick = () => {
+        const [kind,id,d] = b.dataset.b.split(":");
+        const row = rows.find(x => String(x.id)===String(id)) || {};
+        bump(kind, id, row.name||"", row.username||"", Number(d));
+      });
+    }
+    $("btnAsk").onclick = () => show("viewCreate");
+    $("btnCancelCreate").onclick = () => render();
+    document.querySelectorAll("[data-start]").forEach(b => b.onclick = () => {
+      startMode = b.dataset.start;
+      document.querySelectorAll("[data-start]").forEach(x => x.classList.toggle("on", x===b));
+      $("clockWrap").hidden = startMode !== "clock";
+    });
+    document.querySelectorAll("[data-dur]").forEach(b => b.onclick = () => {
+      duration = Number(b.dataset.dur);
+      document.querySelectorAll("[data-dur]").forEach(x => x.classList.toggle("on", x===b));
+    });
+    $("btnPublish").onclick = () => {
+      const start = startMode==="now" ? iranNow() : parseHHMM($("clock").value || fmt(iranNow()));
+      const end = new Date(start.getTime() + duration * 60000);
+      save({
+        hostId: me.id, hostName: me.name, startMode: startMode,
+        startIso: start.toISOString(), endIso: end.toISOString(),
+        startLabel: fmt(start), endLabel: fmt(end), answers: [], reminded: false,
+        openedAt: Date.now(), noreplyTallied: false, lates: []
+      });
+    };
+    function openSheet(id) { $(id).classList.add("on"); }
+    function closeSheet(id) { $(id).classList.remove("on"); }
+    $("btnRules1").onclick = $("btnRules2").onclick = () => openSheet("rules");
+    $("closeRules").onclick = () => closeSheet("rules");
+    $("rules").onclick = (e) => { if (e.target.id==="rules") closeSheet("rules"); };
+    $("btnStats1").onclick = $("btnStats2").onclick = () => { renderStats(); openSheet("stats"); };
+    $("closeStats").onclick = () => closeSheet("stats");
+    $("stats").onclick = (e) => { if (e.target.id==="stats") closeSheet("stats"); };
+    $("btnAdmin1").onclick = $("btnAdmin2").onclick = () => { renderAdmin(); openSheet("admin"); };
+    $("closeAdmin").onclick = () => closeSheet("admin");
+    $("admin").onclick = (e) => { if (e.target.id==="admin") closeSheet("admin"); };
+    $("clock").value = fmt(iranNow());
+    lobbyRef.on("value", (snap) => { ready = true; state = snap.val(); render(); });
+    statsRef.on("value", (snap) => { statsData = snap.val() || {}; if ($("stats").classList.contains("on")) renderStats(); if ($("admin").classList.contains("on")) renderAdmin(); });
+    lateRef.on("value", (snap) => { lateData = snap.val() || {}; if ($("stats").classList.contains("on")) renderStats(); if ($("admin").classList.contains("on")) renderAdmin(); });
+    membersRef.on("value", (snap) => { membersData = snap.val() || {}; if ($("admin").classList.contains("on")) renderAdmin(); });
+  </script>
 </body>
 </html>
