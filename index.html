@@ -37,7 +37,13 @@
     .person { display: flex; justify-content: space-between; align-items: center; padding: 11px 12px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); }
     .person.tap { cursor: pointer; }
     .tiny { border: 1px solid var(--stroke); background: transparent; color: var(--text); border-radius: 999px; padding: 3px 8px; font-family: inherit; font-size: 12px; margin-right: 4px; }
-    .cols { display:flex; gap:8px; align-items:center; font-size:12px; color:var(--dim); }
+    .table { display:flex; flex-direction:column; gap:6px; }
+    .row { display:grid; grid-template-columns: minmax(0,1.5fr) 52px 52px 40px; gap:4px; align-items:center; padding:10px 10px; border-radius:14px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); }
+    .row.head { background:transparent; border-color:transparent; padding:2px 10px; color:var(--dim); font-size:11px; }
+    .row .n { font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right; }
+    .row .c { text-align:center; font-size:13px; color:var(--dim); font-variant-numeric: tabular-nums; }
+    .row.head .c, .row.head .n { font-size:11px; font-weight:500; }
+    header .ghost { margin-right: 6px; }
     .person .n { font-weight: 600; font-size: 14px; }
     .tag { font-size: 11px; padding: 4px 8px; border-radius: 999px; }
     .tag.ok { background: rgba(143,202,160,.14); color: var(--ok); }
@@ -71,7 +77,10 @@
         <div class="brand">SQUAD BOARD</div>
         <div class="hello" id="hello">سلام</div>
       </div>
-      <button class="ghost" id="meChip">عضو</button>
+      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+        <button class="ghost" id="meChip">عضو</button>
+        <button class="ghost" id="btnMembers" hidden>اعضا</button>
+      </div>
     </header>
     <section id="viewIdle" class="card empty">
       <div class="kicker">الان درخواستی باز نیست</div>
@@ -81,7 +90,6 @@
         <button class="btn btn-gold" id="btnAsk">کسی هست برای بازی؟</button>
         <button class="btn btn-rules" id="btnRules1">قوانین</button>
         <button class="btn btn-rules" id="btnStats1">آمار مشارکت</button>
-        <button class="btn btn-rules" id="btnAdmin1" hidden>ادمین</button>
       </div>
     </section>
     <section id="viewCreate" class="card" hidden>
@@ -116,7 +124,6 @@
       <div class="stack" id="boardActions"></div>
       <button class="btn btn-rules" id="btnRules2">قوانین</button>
       <button class="btn btn-rules" id="btnStats2">آمار مشارکت</button>
-      <button class="btn btn-rules" id="btnAdmin2" hidden>ادمین</button>
     </section>
   </div>
   <div class="sheet" id="rules">
@@ -139,15 +146,18 @@
       <h3>آمار مشارکت</h3>
       <p class="muted" style="margin-bottom:12px">بی‌جوابی یعنی هیچ جوابی به درخواست دیگران داده نشده، از شروع لابی تا یک ساعت و سی دقیقه. اگر لابی زودتر بسته شود شمارنده اضافه نمی‌شود. تأخیر یعنی دیرتر از زمان اعلام‌شده به‌اضافه ۵ دقیقه. مرتب‌سازی از بیشترین مجموع.</p>
       <div class="people" id="statsList"></div>
-      <div class="stack"><button class="btn btn-gold" id="closeStats">باشه</button></div>
+      <div class="stack">
+        <button class="btn btn-soft" id="btnEditStats" hidden>ویرایش آمار</button>
+        <button class="btn btn-gold" id="closeStats">باشه</button>
+      </div>
     </div>
   </div>
-  <div class="sheet" id="admin">
+  <div class="sheet" id="members">
     <div class="inner">
-      <h3>ادمین</h3>
-      <p class="muted" style="margin-bottom:12px">فقط خودت این را می‌بینی. بی‌جوابی و تأخیر را دستی کم و زیاد کن.</p>
-      <div class="people" id="adminList"></div>
-      <div class="stack"><button class="btn btn-gold" id="closeAdmin">باشه</button></div>
+      <h3 id="membersTitle">اعضا</h3>
+      <p class="muted" style="margin-bottom:12px">فقط خودت این را می‌بینی. مسدود یعنی نوتیف نمی‌رود. اخراج یعنی از لیست هم حذف می‌شود.</p>
+      <div class="people" id="membersList"></div>
+      <div class="stack"><button class="btn btn-gold" id="closeMembers">باشه</button></div>
     </div>
   </div>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
@@ -161,7 +171,7 @@
     const user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
     const me = { id: String(user.id || "local"), name: [user.first_name, user.last_name].filter(Boolean).join(" ") || "بازیکن" };
     const isAdmin = ADMIN_IDS.includes(me.id);
-    if (isAdmin) { const a1=document.getElementById("btnAdmin1"); const a2=document.getElementById("btnAdmin2"); if(a1)a1.hidden=false; if(a2)a2.hidden=false; }
+    if (isAdmin) { const m=document.getElementById("btnMembers"); if(m) m.hidden=false; }
     document.getElementById("hello").innerHTML = me.name + '<span>تابلو اسکواد — وقت ایران</span>';
     document.getElementById("meChip").textContent = user.username ? "@"+user.username : "عضو";
     firebase.initializeApp({
@@ -178,11 +188,12 @@
     const statsRef = db.ref("stats/noreply");
     const lateRef = db.ref("stats/late");
     const membersRef = db.ref("members");
+    const bannedRef = db.ref("banned");
     const iranNow = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tehran" }));
     const pad = (n) => String(n).padStart(2,"0");
     const fmt = (d) => pad(d.getHours()) + ":" + pad(d.getMinutes());
     const save = (s) => lobbyRef.set(s || null);
-    let startMode = "now", duration = 120, state = null, ready = false, statsData = {}, lateData = {}, membersData = {};
+    let startMode = "now", duration = 120, state = null, ready = false, statsData = {}, lateData = {}, membersData = {}, bannedData = {}, statsEdit = false;
     const $ = (id) => document.getElementById(id);
     const show = (id) => ["viewIdle","viewCreate","viewBoard"].forEach(v => $(v).hidden = v !== id);
     function parseHHMM(str) { const [h,m] = str.split(":").map(Number); const d = iranNow(); d.setHours(h,m,0,0); return d; }
@@ -262,20 +273,31 @@
       }
       show("viewBoard");
     }
-    function renderStats() {
+    function statsRows() {
       const ids = new Set([...Object.keys(statsData||{}), ...Object.keys(lateData||{})]);
-      const rows = [...ids].map(id => {
+      return [...ids].map(id => {
         const n = statsData[id] || {};
         const l = lateData[id] || {};
         return {id, name: n.name || l.name || "بازیکن", username: n.username || l.username || "", noreply: Number(n.count||0), late: Number(l.count||0)};
       }).map(r => ({...r, total: r.noreply + r.late}))
         .filter(r => !hiddenStat(r))
-        .filter(r => r.total > 0)
+        .filter(r => statsEdit || r.total > 0)
         .sort((a,b) => b.total - a.total || b.noreply - a.noreply || b.late - a.late);
-      $("statsList").innerHTML = rows.length
-        ? `<div class="person"><div class="n">اسم</div><div class="cols"><span>بی‌جوابی</span><span>تأخیر</span><span>جمع</span></div></div>` +
-          rows.map(r => `<div class="person"><div class="n">${r.name}</div><div class="cols"><span>${r.noreply}</span><span>${r.late}</span><span>${r.total}</span></div></div>`).join("")
-        : `<div class="muted">هنوز سابقه‌ای نیست.</div>`;
+    }
+    function renderStats() {
+      const rows = statsRows();
+      const edit = isAdmin && statsEdit;
+      $("statsList").innerHTML = `<div class="table"><div class="row head"><div class="n">اسم</div><div class="c">بی‌جواب</div><div class="c">تأخیر</div><div class="c">جمع</div></div>` +
+        (rows.length ? rows.map(r => `<div class="row"><div class="n">${r.name}${edit?` <button class="tiny" data-b="noreply:${r.id}:1">+</button><button class="tiny" data-b="noreply:${r.id}:-1">−</button>`:""}</div><div class="c">${r.noreply}</div><div class="c">${r.late}${edit?` <button class="tiny" data-b="late:${r.id}:1">+</button><button class="tiny" data-b="late:${r.id}:-1">−</button>`:""}</div><div class="c">${r.total}</div></div>`).join("") : `<div class="muted">هنوز سابقه‌ای نیست.</div>`) + `</div>`;
+      if (edit) {
+        $("statsList").querySelectorAll("[data-b]").forEach(btn => btn.onclick = () => {
+          const [kind,id,d] = btn.dataset.b.split(":");
+          const row = rows.find(x => String(x.id)===String(id)) || {};
+          bump(kind, id, row.name||"", row.username||"", Number(d));
+        });
+      }
+      const ed = $("btnEditStats");
+      if (ed) { ed.hidden = !isAdmin; ed.textContent = statsEdit ? "تمام ویرایش" : "ویرایش"; }
     }
     function bump(kind, id, name, username, delta) {
       const ref = db.ref("stats/"+kind+"/"+id);
@@ -285,23 +307,29 @@
         ref.set({name: name||row.name||"بازیکن", username: username||row.username||"", count});
       });
     }
-    function renderAdmin() {
+    function renderMembers() {
       if (!isAdmin) return;
-      const rows = Object.entries(membersData||{}).map(([id,row]) => ({id, ...(row||{})})).filter(r => !hiddenStat(r));
-      $("adminList").innerHTML = rows.length ? rows.map(r => {
-        const n = Number((statsData[r.id]||{}).count||0);
-        const l = Number((lateData[r.id]||{}).count||0);
-        return `<div class="person" style="flex-wrap:wrap;gap:8px"><div class="n">${r.name||"بازیکن"}<div class="muted">بی‌جوابی ${n} · تأخیر ${l}</div></div>
-          <div><button class="tiny" data-b="noreply:${r.id}:1">بی‌جوابی +</button><button class="tiny" data-b="noreply:${r.id}:-1">−</button>
-          <button class="tiny" data-b="late:${r.id}:1">تأخیر +</button><button class="tiny" data-b="late:${r.id}:-1">−</button></div></div>`;
+      const rows = Object.entries(membersData||{}).map(([id,row]) => ({id, ...(row||{})}));
+      $("membersTitle").textContent = "اعضا · " + rows.length + " نفر";
+      $("membersList").innerHTML = rows.length ? rows.map(r => {
+        const banned = !!(bannedData||{})[r.id];
+        const hide = hiddenStat(r);
+        return `<div class="person" style="flex-wrap:wrap;gap:8px"><div class="n">${r.name||"بازیکن"}${hide?" · تست":""}<div class="muted">@${r.username||"—"} ${banned?"· مسدود":""}</div></div>
+          ${String(r.id)===String(me.id) ? `<div class="muted">مالک</div>` : `<div><button class="tiny" data-ban="${r.id}">${banned?"آزاد":"مسدود"}</button><button class="tiny" data-kick="${r.id}">اخراج</button></div>`}</div>`;
       }).join("") : `<div class="muted">عضوی نیست.</div>`;
-      $("adminList").querySelectorAll("[data-b]").forEach(b => b.onclick = () => {
-        const [kind,id,d] = b.dataset.b.split(":");
-        const row = rows.find(x => String(x.id)===String(id)) || {};
-        bump(kind, id, row.name||"", row.username||"", Number(d));
+      $("membersList").querySelectorAll("[data-ban]").forEach(btn => btn.onclick = () => {
+        const id = btn.dataset.ban;
+        if ((bannedData||{})[id]) bannedRef.child(id).set(null);
+        else if (confirm("مسدود شود؟ نوتیف نمی‌رود.")) bannedRef.child(id).set(true);
+      });
+      $("membersList").querySelectorAll("[data-kick]").forEach(btn => btn.onclick = () => {
+        const id = btn.dataset.kick;
+        if (!confirm("اخراج و مسدود شود؟")) return;
+        membersRef.child(id).set(null);
+        bannedRef.child(id).set(true);
       });
     }
-    $("btnAsk").onclick = () => show("viewCreate");
+        $("btnAsk").onclick = () => show("viewCreate");
     $("btnCancelCreate").onclick = () => render();
     document.querySelectorAll("[data-start]").forEach(b => b.onclick = () => {
       startMode = b.dataset.start;
@@ -327,17 +355,19 @@
     $("btnRules1").onclick = $("btnRules2").onclick = () => openSheet("rules");
     $("closeRules").onclick = () => closeSheet("rules");
     $("rules").onclick = (e) => { if (e.target.id==="rules") closeSheet("rules"); };
-    $("btnStats1").onclick = $("btnStats2").onclick = () => { renderStats(); openSheet("stats"); };
+    $("btnStats1").onclick = $("btnStats2").onclick = () => { statsEdit=false; renderStats(); openSheet("stats"); };
     $("closeStats").onclick = () => closeSheet("stats");
     $("stats").onclick = (e) => { if (e.target.id==="stats") closeSheet("stats"); };
-    $("btnAdmin1").onclick = $("btnAdmin2").onclick = () => { renderAdmin(); openSheet("admin"); };
-    $("closeAdmin").onclick = () => closeSheet("admin");
-    $("admin").onclick = (e) => { if (e.target.id==="admin") closeSheet("admin"); };
+    $("btnEditStats").onclick = () => { statsEdit = !statsEdit; renderStats(); };
+    $("btnMembers").onclick = () => { renderMembers(); openSheet("members"); };
+    $("closeMembers").onclick = () => closeSheet("members");
+    $("members").onclick = (e) => { if (e.target.id==="members") closeSheet("members"); };
     $("clock").value = fmt(iranNow());
     lobbyRef.on("value", (snap) => { ready = true; state = snap.val(); render(); });
-    statsRef.on("value", (snap) => { statsData = snap.val() || {}; if ($("stats").classList.contains("on")) renderStats(); if ($("admin").classList.contains("on")) renderAdmin(); });
-    lateRef.on("value", (snap) => { lateData = snap.val() || {}; if ($("stats").classList.contains("on")) renderStats(); if ($("admin").classList.contains("on")) renderAdmin(); });
-    membersRef.on("value", (snap) => { membersData = snap.val() || {}; if ($("admin").classList.contains("on")) renderAdmin(); });
+    statsRef.on("value", (snap) => { statsData = snap.val() || {}; if ($("stats").classList.contains("on")) renderStats(); });
+    lateRef.on("value", (snap) => { lateData = snap.val() || {}; if ($("stats").classList.contains("on")) renderStats(); });
+    membersRef.on("value", (snap) => { membersData = snap.val() || {}; if ($("members").classList.contains("on")) renderMembers(); });
+    bannedRef.on("value", (snap) => { bannedData = snap.val() || {}; if ($("members").classList.contains("on")) renderMembers(); });
   </script>
 </body>
 </html>
