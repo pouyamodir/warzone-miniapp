@@ -108,10 +108,10 @@
       </div>
       <div class="kicker">مود</div>
       <div class="choices" style="margin-bottom:12px">
-        <button class="opt on" data-mode="br">بتل رویال</button>
-        <button class="opt on" data-mode="casual">کژوال</button>
-        <button class="opt on" data-mode="resurgence">ریسرجنس</button>
-        <button class="opt on" data-mode="ranked">رنک</button>
+        <button class="opt" data-mode="br">بتل رویال</button>
+        <button class="opt" data-mode="casual">کژوال</button>
+        <button class="opt" data-mode="resurgence">ریسرجنس</button>
+        <button class="opt" data-mode="ranked">رنک</button>
       </div>
       <div class="kicker">حدود بازی</div>
       <div class="choices">
@@ -205,7 +205,7 @@
     const modeText = (s) => ((s && s.modes) || []).map(m => MODE_LABELS[m] || m).join(" / ") || "نامشخص";
     const saveLobby = (s) => { if (!s || !s.id) return; lobbiesRef.child(s.id).set(s); };
     const dropLobby = (id) => { if (id) lobbiesRef.child(id).set(null); };
-    let startMode = "now", duration = 120, selectedModes = ["br","casual","resurgence","ranked"], lobbies = {}, activeId = null, state = null, ready = false, statsData = {}, lateData = {}, membersData = {}, bannedData = {}, statsEdit = false;
+    let startMode = "now", duration = 120, selectedModes = [], lobbies = {}, activeId = null, state = null, ready = false, statsData = {}, lateData = {}, membersData = {}, bannedData = {}, statsEdit = false;
     const $ = (id) => document.getElementById(id);
     const show = (id) => ["viewIdle","viewCreate","viewBoard"].forEach(v => $(v).hidden = v !== id);
     function parseHHMM(str) { const [h,m] = str.split(":").map(Number); const d = iranNow(); d.setHours(h,m,0,0); return d; }
