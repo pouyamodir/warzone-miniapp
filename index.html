@@ -33,6 +33,8 @@ const bannedRef = db.ref("banned");
 const iranNow = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tehran" }));
 const pad = (n) => String(n).padStart(2,"0");
 const fmt = (d) => pad(d.getHours()) + ":" + pad(d.getMinutes());
+const toFa = (s) => String(s).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
+let pendingClock = false, pendingClockVal = "";
 const MODE_LABELS = {br:"بتل رویال", casual:"کژوال", resurgence:"ریسرجنس", ranked:"رنک"};
 const modeText = (s) => ((s && s.modes) || []).map(m => MODE_LABELS[m] || m).join(" / ") || "نامشخص";
 const saveLobby = (s) => { if (!s || !s.id) return; lobbiesRef.child(s.id).set(s); };
@@ -51,24 +53,60 @@ const list = s.answers || [];
 const readyCodes = isLater(s) ? ["5"] : ["5","15"];
 return [...new Set([s.hostId, ...list.filter(a => readyCodes.includes(a.code)).map(a => a.id)])];
 }
-function label(code, s) {
+function clockLabel(a) {
+const t = (a && (a.timeLabel || a.hhmm)) || "";
+return t ? ("ساعت " + toFa(t)) : "ساعت مشخص";
+}
+function label(code, s, ans) {
 if (code === "host") return "درخواست‌کننده";
+if (code === "clock") return clockLabel(ans);
 if (isLater(s)) return {"5":"هستم","15":"با ۱۵ دقیقه تأخیر","30":"با نیم ساعت تأخیر","60":"با یک ساعت تأخیر",no:"نیستم"}[code] || code;
 return {"5":"تا ۵ دقیقه","15":"تا ۱۵ دقیقه","30":"حدود ۳۰ دقیقه — رزرو","60":"یک ساعت به بالا — رزرو",no:"نیستم"}[code] || code;
 }
 function tagClass(code) {
-if (code==="no") return "no"; if (code==="15"||code==="30"||code==="60") return "wait"; if (code==="host") return "host"; return "ok";
+if (code==="no") return "no"; if (code==="15"||code==="30"||code==="60"||code==="clock") return "wait"; if (code==="host") return "host"; return "ok";
 }
-function choiceButtons(s, selected) {
-const items = isLater(s) ? [["5","هستم"],["15","با ۱۵ دقیقه تأخیر"],["30","با نیم ساعت تأخیر"],["60","با یک ساعت تأخیر"],["no","نیستم"]] : [["5","تا ۵ دقیقه"],["15","تا ۱۵ دقیقه"],["30","حدود ۳۰ دقیقه"],["60","یک ساعت به بالا"],["no","نیستم"]];
-return `<div class="choices">` + items.map(([code, text]) => `<button class="choice${code===selected?" on":""}${code==="no"?" full":""}" data-ans="${code}">${text}</button>`).join("") + `</div>`;
+function choiceButtons(s, selected, selectedAns) {
+const items = isLater(s) ? [["5","هستم"],["15","با ۱۵ دقیقه تأخیر"],["30","با نیم ساعت تأخیر"],["60","با یک ساعت تأخیر"],["clock","ساعت مشخص"],["no","نیستم"]] : [["5","تا ۵ دقیقه"],["15","تا ۱۵ دقیقه"],["30","حدود ۳۰ دقیقه"],["60","یک ساعت به بالا"],["clock","ساعت مشخص"],["no","نیستم"]];
+let html = `<div class="choices">` + items.map(([code, text]) => `<button class="choice${code===selected?" on":""}${code==="no"?" full":""}" data-ans="${code}">${text}</button>`).join("") + `</div>`;
+if (selected === "clock") {
+const t = (selectedAns && (selectedAns.timeLabel || selectedAns.hhmm)) || pendingClockVal || fmt(iranNow());
+html += `<div id="ansClockWrap" style="margin-top:10px"><input type="time" id="ansClock" value="${t}" /><div class="muted" style="margin:6px 0 8px">ساعت به وقت ایران</div><button class="btn btn-gold" id="btnSaveClock">ثبت ساعت</button></div>`;
+}
+return html;
+}
+function bindClockSave() {
+const btn = $("btnSaveClock");
+if (!btn) return;
+btn.onclick = () => {
+const v = ($("ansClock") && $("ansClock").value) || fmt(iranNow());
+pendingClock = false;
+pendingClockVal = v;
+state.answers = (state.answers || []).filter(a => a.id !== me.id);
+state.answers.push({ id: me.id, name: me.name, code: "clock", timeLabel: v, hhmm: v, at: Date.now() });
+saveLobby(state);
+};
 }
 function bindAnswers() {
 $("boardActions").querySelectorAll("[data-ans]").forEach(b => b.onclick = () => {
+const code = b.dataset.ans;
+if (code === "clock") {
+const mine = (state.answers || []).find(a => a.id === me.id);
+pendingClock = true;
+pendingClockVal = (mine && (mine.timeLabel || mine.hhmm)) || fmt(iranNow());
+const actions = $("boardActions");
+const extra = `<button class="btn btn-soft" id="btnBackList">لابی‌های دیگر</button>`;
+actions.innerHTML = choiceButtons(state, "clock", { timeLabel: pendingClockVal }) + extra;
+bindAnswers();
+if ($("btnBackList")) $("btnBackList").onclick = () => { pendingClock = false; activeId = null; render(); };
+return;
+}
+pendingClock = false;
 state.answers = (state.answers || []).filter(a => a.id !== me.id);
-state.answers.push({ id: me.id, name: me.name, code: b.dataset.ans, at: Date.now() });
+state.answers.push({ id: me.id, name: me.name, code, at: Date.now() });
 saveLobby(state);
 });
+bindClockSave();
 }
 function hiddenStat(r) {
 if (STATS_HIDE_IDS.includes(String(r.id))) return true;
@@ -128,7 +166,7 @@ const people = [{id:state.hostId,name:state.hostName,code:"host"}, ...state.answ
 $("people").innerHTML = people.map(p => {
 const marked = (state.lates || []).some(x => String(x.id)===String(p.id));
 const canTap = me.id===state.hostId && p.code!=="host" && p.code!=="no";
-return `<div class="person${canTap?" tap":""}" data-pid="${p.id}"><div class="n">${p.name}${marked?" · تأخیر":""}</div><div class="tag ${tagClass(p.code)}">${label(p.code, state)}</div></div>`;
+return `<div class="person${canTap?" tap":""}" data-pid="${p.id}"><div class="n">${p.name}${marked?" · تأخیر":""}</div><div class="tag ${tagClass(p.code)}">${label(p.code, state, p)}</div></div>`;
 }).join("");
 if (me.id === state.hostId) {
 $("people").querySelectorAll(".tap").forEach(el => el.onclick = () => {
@@ -148,10 +186,12 @@ if (me.id === state.hostId) {
 actions.innerHTML = `<button class="btn btn-soft" id="btnCancelReq">لغو درخواست</button>` + extra;
 $("btnCancelReq").onclick = () => dropLobby(state.id);
 } else {
-actions.innerHTML = (mine ? `<div class="muted">جواب فعلی: ${label(mine.code, state)} — می‌توانی عوض کنی</div>` : "") + choiceButtons(state, mine && mine.code) + extra;
+const sel = pendingClock ? "clock" : (mine && mine.code);
+const ansForUi = pendingClock ? { timeLabel: pendingClockVal || (mine && (mine.timeLabel || mine.hhmm)) || fmt(iranNow()) } : mine;
+actions.innerHTML = (mine && !pendingClock ? `<div class="muted">جواب فعلی: ${label(mine.code, state, mine)} — می‌توانی عوض کنی</div>` : "") + choiceButtons(state, sel, ansForUi) + extra;
 bindAnswers();
 }
-if ($("btnBackList")) $("btnBackList").onclick = () => { activeId = null; render(); };
+if ($("btnBackList")) $("btnBackList").onclick = () => { pendingClock = false; activeId = null; render(); };
 show("viewBoard");
 }
 function statsRows() {

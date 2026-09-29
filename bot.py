@@ -35,6 +35,7 @@ def serve():
 
 LABELS_NOW = {"5": "تا ۵ دقیقه", "15": "تا ۱۵ دقیقه", "30": "حدود ۳۰ دقیقه", "60": "یک ساعت به بالا", "no": "نیستم"}
 LABELS_LATER = {"5": "هستم", "15": "با ۱۵ دقیقه تأخیر", "30": "با نیم ساعت تأخیر", "60": "با یک ساعت تأخیر", "no": "نیستم"}
+# Custom clock answers (code "clock" + timeLabel/hhmm) are mini-app only; bot inline keyboard stays fixed 5/15/30/60/no.
 
 
 def is_later(lobby):
@@ -43,6 +44,20 @@ def is_later(lobby):
 
 def labels_for(lobby):
     return LABELS_LATER if is_later(lobby) else LABELS_NOW
+
+
+def to_fa_digits(s):
+    table = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+    return str(s or "").translate(table)
+
+
+def answer_label(a, lobby=None):
+    code = (a or {}).get("code")
+    if code == "clock":
+        t = (a or {}).get("timeLabel") or (a or {}).get("hhmm") or ""
+        return f"ساعت {to_fa_digits(t)}" if t else "ساعت مشخص"
+    L = labels_for(lobby)
+    return L.get(code, code)
 
 
 def modes_text(lobby):
@@ -150,7 +165,7 @@ def card_text(lobby):
     n = min(4, 1 + len({sid(a.get("id")) for a in answers if a.get("code") in ready}))
     lines = [f"{lobby.get('hostName', 'یکی')} درخواست بازی {modes_text(lobby)} داده.", f"شروع: {lobby.get('startLabel')} — حدوداً تا {lobby.get('endLabel')}", f"{n} از ۴", "", f"{lobby.get('hostName', 'میزبان')}: درخواست‌کننده"]
     for a in answers:
-        lines.append(f"{a.get('name', 'بازیکن')}: {L.get(a.get('code'), a.get('code'))}")
+        lines.append(f"{a.get('name', 'بازیکن')}: {answer_label(a, lobby)}")
     return "\n".join(lines)
 
 
@@ -197,9 +212,15 @@ def notify_new_answers(lobby, old):
             continue
         oid = sid(a.get("id"))
         prev_a = prev.get(oid)
-        if prev_a is None or prev_a.get("code") != a.get("code"):
+        if prev_a is None or prev_a.get("code") != a.get("code") or (
+            a.get("code") == "clock"
+            and (
+                (prev_a or {}).get("timeLabel") != a.get("timeLabel")
+                or (prev_a or {}).get("hhmm") != a.get("hhmm")
+            )
+        ):
             changed = True
-            text = f"{a.get('name', 'بازیکن')} برای {modes_text(lobby)}: {L.get(a.get('code'), a.get('code'))}"
+            text = f"{a.get('name', 'بازیکن')} برای {modes_text(lobby)}: {answer_label(a, lobby)}"
             for uid in members:
                 if uid == oid:
                     continue
@@ -460,7 +481,7 @@ def handle_update(upd):
     answers.append({"id": sid(user.get("id")), "name": " ".join(x for x in [user.get("first_name"), user.get("last_name")] if x) or "بازیکن", "code": code, "at": int(time.time() * 1000)})
     lobby["answers"] = answers
     save_lobby(lobby)
-    tg("sendMessage", {"chat_id": chat_id, "text": f"ثبت شد برای {modes_text(lobby)}: " + L.get(code, code)})
+    tg("sendMessage", {"chat_id": chat_id, "text": f"ثبت شد برای {modes_text(lobby)}: " + answer_label({"code": code}, lobby)})
 
 
 def main():
