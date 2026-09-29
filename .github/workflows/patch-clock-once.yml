@@ -22,10 +22,5 @@ jobs:
           git add index.html bot.py
           git add -A .github/workflows _xform_clock.py _staging || true
           git status
-          git commit -m "$(cat <<'EOF'
-Add custom clock lobby answer (mini-app only)
-
-Players can reply with ساعت مشخص and a Iran-time picker; board shows ساعت HH:MM as reserve/wait. Bot cards label clock answers; inline keyboard unchanged.
-EOF
-)"
+          git commit -m "Add custom clock lobby answer (mini-app only)"
           git push origin HEAD:main
