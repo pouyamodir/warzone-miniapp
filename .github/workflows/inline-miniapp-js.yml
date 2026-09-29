@@ -1,5 +1,11 @@
 name: Inline miniapp JS
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/inline-miniapp-js.yml'
+      - 'app.js'
+      - 'index.html'
   workflow_dispatch:
 jobs:
   inline:
@@ -22,10 +28,13 @@ jobs:
               html = html.replace('<script src="app.js"></script>', '<script>\n' + js.rstrip('\n') + '\n</script>', 1)
               idx.write_text(html, encoding='utf-8')
               print('inlined', len(html))
-          app.write_text('console.warn("app.js unused; logic is in index.html");\n', encoding='utf-8')
+          # Only stub if index no longer depends on app.js
+          html2 = idx.read_text(encoding='utf-8')
+          if 'src="app.js"' not in html2:
+              app.write_text('console.warn("app.js unused; logic is in index.html");\n', encoding='utf-8')
           for m in ['clearPlayerStats', 'حذف از آمار', 'STATS_HIDE_IDS = ["6812317446"]', 'STATS_HIDE_USERNAMES = ["pouya_modir"]', 'آمار هم پاک']:
-              assert m in idx.read_text(encoding='utf-8'), m
-          assert 'src="app.js"' not in idx.read_text(encoding='utf-8')
+              assert m in html2, m
+          assert 'src="app.js"' not in html2
           print('verified')
           PY
       - name: Commit
