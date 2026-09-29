@@ -10,15 +10,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply custom clock answer transform
         run: |
+          cat _staging/c0.b64 _staging/c1.b64 _staging/c2.b64 _staging/c3.b64 _staging/c4.b64 | base64 -d > _xform_clock.py
           python3 _xform_clock.py
           rm -f _xform_clock.py
+          rm -rf _staging
       - name: Commit and cleanup
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -f .github/workflows/patch-clock-once.yml
           git add index.html bot.py
-          git add -A .github/workflows _xform_clock.py || true
+          git add -A .github/workflows _xform_clock.py _staging || true
           git status
           git commit -m "$(cat <<'EOF'
 Add custom clock lobby answer (mini-app only)
