@@ -1,0 +1,29 @@
+name: patch-clock-once
+on:
+  workflow_dispatch:
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply custom clock answer transform
+        run: |
+          python3 _xform_clock.py
+          rm -f _xform_clock.py
+      - name: Commit and cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/patch-clock-once.yml
+          git add index.html bot.py
+          git add -A .github/workflows _xform_clock.py || true
+          git status
+          git commit -m "$(cat <<'EOF'
+Add custom clock lobby answer (mini-app only)
+
+Players can reply with ساعت مشخص and a Iran-time picker; board shows ساعت HH:MM as reserve/wait. Bot cards label clock answers; inline keyboard unchanged.
+EOF
+)"
+          git push origin HEAD:main
